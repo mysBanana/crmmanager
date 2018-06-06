@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="/css/buttons.css">
+    <link rel="stylesheet" href="/js/iview/dist/styles/iview.css">
+    <script src="/js/vue.js"></script>
+    <script src="/js/iview/dist/iview.js"></script>
+    <script src="/js/axios.js"></script>
+    <script src="/js/jquery-3.3.1.js"></script>
+    <script src="/js/permissionShow.js"></script>
+    <style>
+        html body{
+            width: 100%;
+            height: auto;
+            background: rgb(2,0,36);
+            background: linear-gradient(90deg, rgba(2,0,36,1) 0%, rgba(235,170,217,0.9699230033810399) 0%, rgba(0,212,255,1) 100%);
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div style="text-align: center;">
+            <h2>新建学生后是否自动分配:</h2>
+            <i-switch   permissionerequier="student:queryIsDistribution" size="large" v-model="isDistribution" @on-change="change"></i-switch>
+        </div>
+    </div>
+</body>
+<script>
+    let maindata={
+        data(){
+            return{
+                isDistribution:true
+            }
+        },
+        methods:{
+            change(flag){
+                let params=new URLSearchParams();
+                params.append("flag",flag);
+                axios.put('/student/updateIsDistribution',params)
+                    .then((response)=>{
+                        this.$Message.success('设置成功')
+                    })
+                    .catch((error)=>{
+
+                        try {
+                            if(error.response.data.success==false){
+                                if(error.response.data.message=="请先登录"){
+                                    window.top.location.href="/";
+                                }
+                                this.$Notice.error({
+                                    title: '查看失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '查看失败',
+                                desc:  ''
+                            });
+                        }
+                        console.log(error)
+                    })
+            }
+        },
+        mounted(){
+            axios.get('/student/queryIsDistribution')
+                .then((response)=>{
+                    this.isDistribution=response.data;
+                    window.setTimeout(()=>{
+                        permissionshow();
+                    },100)
+                })
+                .catch((error)=>{
+
+                    try {
+                        if(error.response.data.success==false){
+                            if(error.response.data.message=="请先登录"){
+                                window.top.location.href="/";
+                            }
+                            this.$Notice.error({
+                                title: '查看失败',
+                                desc:  error.response.data.message
+                            });
+                        }
+                    }
+                    catch(err) {
+                        this.$Notice.error({
+                            title: '查看失败',
+                            desc:  ''
+                        });
+                    }
+                    console.log(error)
+                })
+        }
+    }
+
+    var Component = Vue.extend(maindata)
+    new Component().$mount('#app')
+</script>
+</html>

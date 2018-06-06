@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="/css/buttons.css">
+    <link rel="stylesheet" href="/js/iview/dist/styles/iview.css">
+    <link rel="stylesheet" href="/js/echarts/style.min.css">
+    <script src="/js/vue.js"></script>
+    <script src="/js/iview/dist/iview.js"></script>
+    <script src="/js/axios.js"></script>
+    <script src="/js/echarts/echarts.min.js"></script>
+    <script src="/js/echarts/index.min.js"></script>
+    <script src="/js/jquery-3.3.1.js"></script>
+    <script src="/js/permissionShow.js"></script>
+    <style>
+        html body{
+            width: 100%;
+            height: auto;
+            background: rgb(2,0,36);
+            background: linear-gradient(90deg, rgba(2,0,36,1) 0%, rgba(235,170,217,0.9699230033810399) 0%, rgba(0,212,255,1) 100%);
+        }
+        .menuzi .ivu-tree ul{
+            font-size: 16px;
+        }
+        .menuzi{
+            font-size: 12px;
+        }
+        .row{
+            background-color: #fff;
+            margin-top: 10px;
+            height: 48px;
+        }
+        .displaynonde{
+            display: none;
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div style="padding: 0 10px;">
+        <div style="display: flex;justify-content: space-between;align-items: center;">
+            <div permissionerequier="module:queryModuleTreePaging">
+                <i-input v-model="moduleFormPaging.moduleName" placeholder="请输入你要查询的模块名称"></i-input>
+                <i-button @click="searchModule" type="success" >搜索</i-button>
+            </div>
+            <div>
+                    <button permissionerequier="module:expertModule" @click="expertData"  class="button button-small  button-3d button-royal button-rounded">
+                        <Icon type="android-download"></Icon>
+                        导出数据为表格
+                    </button>
+            </div>
+            <div>
+                <button permissionerequier="module:addModule" @click="addModuleModalShow" class="button button-small button-3d button-action button-pill">
+                    新增模块
+                </button>
+            </div>
+            <div>
+                <i-button icon="loop" type="info" @click="reloadHTML">刷新</i-button>
+            </div>
+        </div>
+
+    </div>
+    <div style="margin-top: 20px">
+        <div>
+            <i-table permissionerequier="module:queryModuleTreePaging" :columns="moduleTreeColumns" :data="moduleTreeData"></i-table>
+        </div>
+
+        <!--树-->
+    </div>
+    <div style="display: flex;justify-content: center;align-items: center;margin-top: 10px;">
+        <page @on-change="pagingchanpage" @on-page-size-change="pagingchansize" :total="moduleFormPaging.total"  :current="moduleFormPaging.page"
+              :page-size="moduleFormPaging.rows" show-elevator show-sizer></page>
+    </div>
+    <div>
+        <!--备用-->
+        <modal v-model="addModuleModal" title="新增模块">
+            <i-form style="" :label-width="100" :model="addModuleForm"  label-position="right"  ref="addModuleFormRef" :rules="addModuleFormRules">
+                <form-item  label="模块名称"  prop="name">
+                    <i-input type="text"  v-model="addModuleForm.name"  placeholder="请输入模块名称">
+                    </i-input>
+                </form-item >
+                <form-item  label="模块路径">
+                    <i-input type="text"  v-model="addModuleForm.path"  placeholder="请输入模块对应路径">
+                    </i-input>
+                </form-item >
+                <form-item  label="模块父级" permissionerequier="module:getModulesCassade">
+                    <cascader change-on-select size="large" :data="cascaderModuleTreeData" v-model="addModuleForm.parentId" placeholder="请选择/不选直接添加到根节点"></cascader>
+                </form-item >
+                <form-item  label="权重值"  prop="weight">
+                    <input-number :max="100" :min="1" v-model="addModuleForm.weight"></input-number>
+                </form-item >
+                <form-item  label="图标类名">
+                    <i-input type="text"  v-model="addModuleForm.icon_class"  placeholder="请输入图标类名">
+                    </i-input>
+                </form-item >
+            </i-form>
+            <div slot="footer">
+                <i-button type="success" size="large" long @click="addModuleMethod">确定新增</i-button>
+            </div>
+        </modal>
+        <modal v-model="updateModuleModal" title="修改模块">
+            <i-form style="" :label-width="100" :model="updateModuleForm"  label-position="right"  ref="updateModuleFormRef" :rules="addModuleFormRules">
+                <form-item  label="模块名称"  prop="name">
+                    <i-input type="text"  v-model="updateModuleForm.name"  placeholder="请输入模块名称">
+                    </i-input>
+                </form-item >
+                <form-item  label="模块路径">
+                    <i-input type="text"  v-model="updateModuleForm.path"  placeholder="请输入模块对应路径">
+                    </i-input>
+                </form-item >
+                <form-item  label="权重值"  prop="weight">
+                    <input-number :max="100" :min="1" v-model="updateModuleForm.weight"></input-number>
+                </form-item >
+                <form-item  label="图标类名">
+                    <i-input type="text"  v-model="updateModuleForm.icon_class"  placeholder="请输入图标类名">
+                    </i-input>
+                </form-item >
+            </i-form>
+            <div slot="footer">
+                <i-button type="success" size="large" long @click="updateModuleMethod">确定修改</i-button>
+            </div>
+        </modal>
+        <modal width="1000" v-model="moduleTreeChartModal" title="关系图">
+            <div>
+                <ve-tree :data="chartData" :settings="chartSettings" ref="chartModuleTreeData"></ve-tree>
+            </div>
+        </modal>
+    </div>
+</div>
+</body>
+<script>
+
+    Vue.component('expandRow', {
+        data: function () {
+            return {
+
+            }
+        },
+        props:{
+            row:Array,
+            treecolumns:Array
+        },
+        template: `
+         <i-table :show-header="false" :columns="this.treecolumns" :data="row"></i-table>
+        `
+    })
+
+    let maindata={
+        data(){
+            return{
+                chartSettings:{
+                    seriesMap: {
+                        tree: {
+                            orient: 'vertical'
+                        }
+                    }
+                },
+                chartData: {
+                    columns: ['name', 'value','link'],
+                    rows: [
+                        {
+                            name: 'tree',
+                            value: []
+                        }
+                    ]
+                },
+                moduleTreeChartModal:false,
+                moduleFormPaging:{
+                    moduleName:'',
+                    page:1,
+                    rows:10,
+                    total:0
+                },
+                updateModuleModal:false,
+                updateModuleForm:{
+                    id:0,
+                    name:'',
+                    path:'',
+                    weight:0,
+                    parentId:0,
+                    icon_class:''
+                },
+                cascaderModuleTreeData:[],
+                addModuleModal:false,
+                addModuleForm:{
+                    name:'',
+                    parentId:[],
+                    path:'',
+                    weight:0,
+                    icon_class:''
+                },
+                addModuleFormRules:{
+                    name:[
+                        { required: true, message: '模块名不能为空', trigger: 'blur'}
+                    ]
+                },
+                moduleTreeColumns:[
+                    {
+                        type: 'expand',
+                        width: 50,
+                        render: (h, params) => {
+                            return h('expandRow', {
+                                props: {
+                                    row: params.row.children,
+                                    treecolumns:this.moduleTreeColumns
+                                },
+                            })
+                        }
+                    },
+                    {
+                        title:'模块名称',
+                        key:'title',
+                       // className:'displaynonde'
+                    },
+                    {
+                        title:'路径',
+                        key:'path',
+                    },
+                    {
+                        title:'权重',
+                        key:'weight'
+                    },
+                    {
+                        title:'图标class名',
+                        key:'icon_class'
+                    },
+                    {
+                        title:'操作',
+                        key:'id',
+                        render: (h, params) => {
+                            return h('div', [
+                                h('i-button', {
+                                    props: {
+                                        type: 'text'
+                                    },
+                                    attrs:{
+                                        permissionerequier:'module:updateAddModule'
+                                    },
+                                    on:{
+                                        click:()=>{
+                                            //修改
+                                            this.updateModuleForm.id=params.row.id;
+                                            this.updateModuleForm.name=params.row.title;
+                                            this.updateModuleForm.path=params.row.path;
+                                            this.updateModuleForm.weight=params.row.weight;
+                                            this.updateModuleForm.icon_class=params.row.icon_class;
+                                            this.updateModuleForm.parentId=params.row.parentId;
+                                            this.updateModuleModal=true;
+                                        }
+                                    }
+                                },"修改"),
+                                h('i-button', {
+                                    props: {
+                                        type: 'text'
+                                    },
+                                    attrs:{
+                                        permissionerequier:'module:deleteModule'
+                                    },
+                                    on:{
+                                      click:()=>{
+                                        //删除
+                                          this.$Modal.confirm({
+                                              onOk:()=>{
+                                                  let id=params.row.id;
+                                                  axios.delete('/module/deleteModule/'+id)
+                                                      .then((response)=>{
+                                                          if(response.data.success){
+                                                              this.$Notice.success({
+                                                                  title: '删除成功',
+                                                                  desc:  ''
+                                                              });
+                                                              this.moduleTreeLoad();
+                                                          }else{
+                                                              this.$Notice.error({
+                                                                  title: '删除失败',
+                                                                  desc:  ''
+                                                              });
+                                                          }
+                                                      })
+                                                      .catch((error)=>{
+                                                          try {
+                                                              if(error.response.data.success==false){
+                                                                  if(error.response.data.message=="请先登录"){
+                                                                      window.top.location.href="/";
+                                                                  }
+                                                                  this.$Notice.error({
+                                                                      title: '删除失败',
+                                                                      desc:  error.response.data.message
+                                                                  });
+                                                              }
+                                                          }
+                                                          catch(err) {
+                                                              this.$Notice.error({
+                                                                  title: '删除失败',
+                                                                  desc:  ''
+                                                              });
+                                                          }
+                                                          console.log(error)
+                                                      })
+                                              },
+                                              render: (h) => {
+                                                  return h('h1', {
+                                                      style:{
+                                                          textAlign:'center'
+                                                      }
+                                                  },'!是否要删除模块')
+                                              }
+                                          })
+
+
+
+                                      }
+                                    }
+                                },"删除")
+                            ]);
+                        }
+                    }
+                ],
+                moduleTreeData:[],
+
+            }
+        },
+        watch: {
+            moduleTreeChartModal (v) {
+                this.$nextTick(_ => {
+                    this.$refs['chartModuleTreeData'].echarts.resize()
+                })
+            }
+        },
+        methods:{
+            importsuc(response, file, fileList){
+                if(response.success){
+                    this.$Message.success("成功");
+                }else{
+                    this.$Message.error(response.message);
+                }
+
+            },
+            importerr(error, file, fileList){
+                this.$Message.error(error.message);
+            },
+            expertData(){
+                const form = document.createElement('form')
+                form.action = "/module/expertModule"
+                form.method = 'GET'
+                form.style.display = 'none'
+                const moduleName=document.createElement("input");
+                moduleName.name="moduleName"
+                moduleName.value = this.moduleFormPaging.moduleName;
+
+
+                const button = document.createElement('input')
+                button.type = 'submit'
+                form.appendChild(moduleName);
+                form.appendChild(button)
+                document.body.appendChild(form)
+                form.submit()
+                document.body.removeChild(form)
+            },
+            searchModule(){
+                this.moduleFormPaging.page=1;
+                this.moduleTreeLoad();
+            },
+            pagingchansize(rows){
+                this.moduleFormPaging.rows=rows;
+                this.moduleTreeLoad();
+            },
+            pagingchanpage(page){
+                this.moduleFormPaging.page=page;
+                this.moduleTreeLoad();
+            },
+            updateModuleMethod(){
+                axios.put('/module/updateModule',this.updateModuleForm)
+                    .then((response)=>{
+                        if(response.data.success){
+                            this.updateModuleModal=false;
+                            this.moduleTreeLoad();
+                            this.$Notice.success({
+                                title: '修改成功',
+                                desc:  ''
+                            });
+                        }else{
+                            this.$Notice.error({
+                                title: '修改失败',
+                                desc:  response.data.message
+                            });
+                        }
+
+                    })
+                    .catch((error)=>{
+                        try {
+                            if(error.response.data.message=="请先登录"){
+                                window.top.location.href="/";
+                            }
+                            if(error.response.data.success==false){
+                                this.$Notice.error({
+                                    title: '查询失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '查询失败',
+                                desc:  ''
+                            });
+                        }     console.log(error)
+                    })
+            },
+            addModuleMethod(){
+                let addModuleData=this.addModuleForm;
+                this.$refs['addModuleFormRef'].validate((valid) => {
+                        if (valid) {
+                            axios.post('/module/addModule',{
+                                name:addModuleData.name,
+                                parentId:addModuleData.parentId.length>0?addModuleData.parentId[addModuleData.parentId.length-1]:0,
+                                path:addModuleData.path,
+                                weight:addModuleData.weight,
+                                icon_class:addModuleData.icon_class,
+
+                            })
+                                .then((response)=>{
+                                    if(response.data.success){
+                                        this.addModuleModal=false;
+                                        this.addModuleForm.name="";
+                                        this.addModuleForm.parentId=[];
+                                        this.addModuleForm.path="";
+                                        this.addModuleForm.weight=0;
+                                        this.addModuleForm.icon_class="";
+                                        this.moduleTreeLoad();
+                                        this.$Notice.success({
+                                            title: '新增成功',
+                                            desc:  ''
+                                        });
+                                    }else{
+                                        this.$Notice.error({
+                                            title: '新增失败',
+                                            desc:  response.data.message
+                                        });
+                                    }
+
+                                })
+                                .catch((error)=>{
+                                    try {
+                                        if(error.response.data.message=="请先登录"){
+                                            window.top.location.href="/";
+                                        }
+                                        if(error.response.data.success==false){
+                                            this.$Notice.error({
+                                                title: '新增失败',
+                                                desc:  error.response.data.message
+                                            });
+                                        }
+                                    }
+                                    catch(err) {
+                                        this.$Notice.error({
+                                            title: '新增失败',
+                                            desc:  ''
+                                        });
+                                    }                                               console.log(error)
+                                })
+                        }else{
+                            this.$Message.error('字段错误!');
+                        }
+                })
+
+            },
+            addModuleModalShow(){
+
+                axios.get('/module/getModulesCassade')
+                    .then((response)=>{
+                        this.cascaderModuleTreeData=response.data;
+                        this.addModuleModal=true;
+
+                    })
+                    .catch((error)=>{
+                        try {
+                            if(error.response.data.message=="请先登录"){
+                                window.top.location.href="/";
+                            }
+                            if(error.response.data.success==false){
+                                this.$Notice.error({
+                                    title: '查询失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '查询失败',
+                                desc:  ''
+                            });
+                        }                                               console.log(error)
+                    })
+            },
+            renderContent (h, { root, node, data }) {
+                return h('span', {
+                    style: {
+                        display: 'inline-block',
+                        width: '100%'
+                    }
+                }, [
+                    h('span', data.title),
+                    h('span', {
+                        style: {
+                            display: 'inline-block',
+                            float: 'right',
+                            marginRight: '32px',
+                            position:'relative',
+                            bottom:'15px'
+                        }
+                    }, [
+                        h('Button', {
+                            props: Object.assign({}, this.buttonProps, {
+                                icon: 'ios-plus-empty'
+                            }),
+                            style: {
+                                marginRight: '8px'
+                            },
+                            on: {
+                                click: () => {
+
+                                }
+                            }
+                        }),
+                        h('Button', {
+                            props: Object.assign({}, this.buttonProps, {
+                                icon: 'ios-minus-empty'
+                            }),
+                            on: {
+                                click: () => {
+
+                                }
+                            }
+                        })
+                    ])
+                ]);
+            },
+            moduleTreeLoad(){
+                window.setTimeout(()=>{
+                    permissionshow();
+                },100)
+                axios.get('/module/queryModuleTreePaging',{
+                    params:this.moduleFormPaging
+                })
+                    .then((response) => {
+                        this.moduleTreeData=[];
+                        this.moduleFormPaging.total=response.data.total;
+                        this.moduleTreeData=response.data.rows;
+                        if(this.moduleFormPaging.moduleName!=''){
+                            if(this.moduleTreeColumns[this.moduleTreeColumns.length-1].title!="查看"){
+                                this.moduleTreeColumns.push({
+                                    title:'查看',
+                                    render:(h,params)=>{
+                                        return h("i-button",{
+                                            attrs:{
+                                                permissionerequier:'module:getChartTreeById'
+                                            },
+                                            on:{
+                                                click:()=>{
+                                                    this.chartData.rows[0].value=[];
+                                                    axios.get('/module/getChartTreeById/'+params.row.id)
+                                                        .then((response)=>{
+                                                            this.chartData.rows[0].value.push(response.data);
+                                                            console.log(JSON.stringify(this.chartData));
+                                                            this.moduleTreeChartModal=true;
+                                                            /*     chartData: {
+                                                                     columns: ['name', 'value'],
+                                                                         rows: [
+                                                                         {
+                                                                             name: 'tree1',
+                                                                             value: []
+                                                                         }
+                                                                     ]
+                                                                 },*/
+
+                                                        })
+                                                        .catch((error)=>{
+                                                            try {
+                                                                if(error.response.data.message=="请先登录"){
+                                                                    window.top.location.href="/";
+                                                                }
+                                                                if(error.response.data.success==false){
+                                                                    this.$Notice.error({
+                                                                        title: '查询失败',
+                                                                        desc:  error.response.data.message
+                                                                    });
+                                                                }
+                                                            }
+                                                            catch(err) {
+                                                                this.$Notice.error({
+                                                                    title: '查询失败',
+                                                                    desc:  ''
+                                                                });
+                                                            }                                               console.log(error)
+                                                        })
+
+                                                }
+                                            }
+                                        },"查看关系图")
+                                    }
+
+                                })
+                            }
+                        }else{
+                            if(this.moduleTreeColumns[this.moduleTreeColumns.length-1].title=="查看"){
+                                this.moduleTreeColumns.pop();
+                            }
+                        }
+
+
+
+                    })
+                    .catch((error)=>{
+                        try {
+                            if(error.response.data.message=="请先登录"){
+                                window.top.location.href="/";
+                            }
+                            if(error.response.data.success==false){
+                                this.$Notice.error({
+                                    title: '查询失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '查询失败',
+                                desc:  ''
+                            });
+                        }                                               console.log(error)
+                    })
+            },
+            reloadHTML(){
+                this.$Spin.show();
+                this.$Loading.start();
+                setTimeout(() => {
+                    this.$Spin.hide();
+                    this.$Loading.finish();
+                    window.location.reload();
+                }, 1000);
+            }
+        },
+        mounted(){
+            this.moduleTreeLoad()
+        }
+    }
+    var Component = Vue.extend(maindata)
+    new Component().$mount('#app')
+</script>
+</html>

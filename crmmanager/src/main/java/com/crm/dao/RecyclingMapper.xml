@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crm.dao.RecyclingMapper">
+
+    <insert id="addRecycling" parameterType="recycling">
+        INSERT INTO recycling(recylingId, deleteTable,deleteId,string0,string1)
+                VALUES (#{recylingId},#{deleteTable},#{deleteId},#{string0},#{string1})
+    </insert>
+
+    <select id="queryRecycling" parameterType="recyclingQuery" resultType="recycling">
+        SELECT SQL_CALC_FOUND_ROWS * FROM recycling
+        <where>
+            <if test="tableName!=null and tableName!=''">
+                and deleteTable = #{tableName}
+            </if>
+            <if test="createTimeStart!=null">
+                and createTime >= #{createTimeStart}
+            </if>
+            <if test="createTimeEnd!=null">
+                and createTime &lt;= #{createTimeEnd}
+            </if>
+        </where>
+        <if test="rows!=0">
+            limit #{offsex},#{rows}
+        </if>
+    </select>
+
+    <select id="queryCount" resultType="int">
+        SELECT FOUND_ROWS();
+    </select>
+
+    <update id="updateReduction" parameterType="recylingReduction">
+        UPDATE ${tableName} set ${nameColumn}=#{nameValue} WHERE id=#{id}
+    </update>
+
+    <delete id="deleteRecycling">
+        DELETE FROM recycling WHERE recylingId=#{id}
+    </delete>
+
+    <update id="updateString0Byid">
+        UPDATE recycling set String0=#{string0} where recylingId=#{recyclingId}
+    </update>
+
+</mapper>

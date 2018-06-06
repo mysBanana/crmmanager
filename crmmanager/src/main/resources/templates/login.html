@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CRM登录</title>
+    <link rel="stylesheet" href="/js/iview/dist/styles/iview.css">
+    <link rel="stylesheet" href="/css/buttons.css">
+    <script src="/js/vue.js"></script>
+    <script src="/js/iview/dist/iview.js"></script>
+    <script src="/js/axios.js"></script>
+   <script src="/js/particles.min.js"></script>
+
+
+    <style>
+        html,body{
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background-size:100% 100%;
+            position:absolute;
+            filter:progid:DXImageTransform.Microsoft.AlphaImageLoader(src='bg-login.png',sizingMethod='scale');
+
+        }
+        body{
+            display: table;
+        }
+
+        #app{
+            display: table-cell;
+            vertical-align: middle;
+        }
+        .app-row-col{
+            border: 1px #1c2438 dashed;
+            padding-right: 80px;
+        }
+        .background{
+            position: absolute;
+            display: block;
+            top: 0;
+            left: 0;
+            z-index: 0;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <canvas class="background"></canvas>
+    <row class="approw">
+        <i-col span="12" offset="5" class="app-row-col">
+
+            <h1 style="text-align: center;font-size: 40px;color:#56de68;">CRM管理系统</h1>
+
+        <i-form style="margin-top: 20px;" :model="loginForm"
+                label-position="right" :label-width="60" ref="loginForm" :rules="validatorRules" >
+            <form-item  label="登录名"  prop="un">
+                <i-input type="text" v-model="loginForm.un" placeholder="请输入用户名" size="large" @on-enter="handleSubmit('loginForm')">
+                </i-input>
+            </form-item >
+            <form-item  label="密码"  prop="pwd">
+                <i-input type="password" v-model="loginForm.pwd" placeholder="请输入密码" size="large" @on-enter="handleSubmit('loginForm')">
+                </i-input>
+            </form-item >
+            <form-item>
+                <row>
+                    <i-col span="10" offset="2">
+                        <i-button  class="button button-glow button-rounded button-highlight" @click="handleSubmit('loginForm')" long>登陆</i-button>
+                    </i-col>
+                    <i-col span="10" offset="2">
+                        <i-button class="button button-glow button-rounded button-caution" @click="handleReset('loginForm')" long>重置</i-button>
+                    </i-col>
+                </row>
+            </form-item>
+        </i-form>
+        </i-col>
+    </row>
+</div>
+<script>
+    window.onload = function() {
+       Particles.init({
+            selector: '.background',
+            connectParticles:true,
+            color:'#5b91d3'
+        });
+    };
+    new Vue({
+        el: '#app',
+        data: {
+            loginForm:{
+                un:"",
+                pwd:''
+            },
+            validatorRules:{
+                un:{required:true,message:"请输入用户名"},
+                pwd:{required:true,message:"请输入密码"}
+            }
+        },
+        methods: {
+            handleSubmit(name){
+
+                this.$refs[name].validate((valid) => {
+                    if (valid) {
+
+                        axios.get("user/login",{
+                            params:this.loginForm
+                        })
+                            .then((response)=>{
+                                let message=response.data.message;
+                                if(response.data.success){
+                                    //登录成功跳转页面
+                                    window.localStorage.setItem('loginName',response.data.remark)
+                                    window.localStorage.setItem('userId',message.uid)
+                                    window.localStorage.setItem('roleNames',message.roleNames)
+                                    window.location.href="/main"
+                                }else{
+                                    //登录失败重新输入
+                                    this.$Message.error(response.data.message);
+                                }
+                            })
+                            .catch((error)=>{
+                                this.$Message.error('提交错误,请联系管理员修复');
+                                console.log(error)
+                            })
+                    } else {
+                        this.$Message.error('提交失败');
+                    }
+                })
+            },
+            handleReset(name){
+                this.$refs[name].resetFields();
+            }
+        }
+    })
+</script>
+</body>
+
+</html>

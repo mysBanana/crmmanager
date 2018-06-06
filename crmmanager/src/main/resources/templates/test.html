@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="/js/jquery-3.3.1.js"></script>
+    <style>
+
+    </style>
+    <script>
+        let websocket=null;
+        $(function () {
+             websocket = new WebSocket("ws://localhost:80/socketServer");
+            websocket.onmessage = function(event) {
+                alert(event)
+                console.log(event)
+            }
+        })
+        function a() {
+            websocket.send("哈哈哈")
+        }
+    </script>
+</head>
+<body>
+    <button onclick="a()">点击</button>
+</body>
+
+
+</html>

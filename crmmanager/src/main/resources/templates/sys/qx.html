@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="/css/buttons.css">
+    <link rel="stylesheet" href="/js/iview/dist/styles/iview.css">
+    <script src="/js/vue.js"></script>
+    <script src="/js/iview/dist/iview.js"></script>
+    <script src="/js/axios.js"></script>
+    <script src="/js/jquery-3.3.1.js"></script>
+    <script src="/js/permissionShow.js"></script>
+    <style>
+        html body{
+            width: 100%;
+            height: auto;
+            background: rgb(2,0,36);
+            background: linear-gradient(90deg, rgba(2,0,36,1) 0%, rgba(235,170,217,0.9699230033810399) 0%, rgba(0,212,255,1) 100%);
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div style="display: flex;justify-content: space-between;align-items: center;">
+            <div permissionerequier="permission:queryByPermissionName">
+                <span>权限名称:</span>
+                <i-input v-model="permissionPaging.permissionName" placeholder="请输入你要查询的权限名称"></i-input>
+                <i-button type="primary" icon="ios-search" @click="queryPermissionQuery">搜索</i-button>
+            </div>
+            <div permissionerequier="permission:expertPermission">
+                <button @click="expertData"  class="button button-small  button-3d button-royal button-rounded">
+                    <Icon type="android-download"></Icon>
+                    导出数据为表格
+                </button>
+            </div>
+            <div>
+                <i-button icon="loop" type="info" @click="reloadHTML">刷新</i-button>
+            </div>
+        </div>
+        <div>
+        </div>
+        
+        <div>
+            <i-table permissionerequier="permission:queryByPermissionName" :loading="permissionTableLoading" :columns="permissionColumns" :data="permissionData"></i-table>
+        </div>
+        <div style="display: flex;justify-content: center;align-items: center;margin-top: 10px;">
+            <page  @on-change="permissionPageChange" @on-page-size-change="permissionRowsChange"   :total="permissionPaging.total"  :current="permissionPaging.page"
+                  :page-size="permissionPaging.rows" show-elevator show-sizer></page>
+        </div>
+        <div style="display: none;"></div>
+    </div>
+</body>
+<script>
+
+    Vue.component('expandRow', {
+        data: function () {
+            return {
+
+            }
+        },
+        props:{
+            row:Array,
+            treecolumns:Array,
+            loading:Boolean
+        },
+        template: `
+         <i-table
+
+         :columns="this.treecolumns"
+         :data="row"
+         ></i-table>
+        `
+    })
+
+    let maindata={
+        data(){
+            return{
+                permissionPaging:{
+                    permissionName:'',
+                    page:1,
+                    rows:10,
+                    total:0,
+                },
+                permissionTableLoading:true,
+                permissionData:[],
+                permissionChildrenColumns:[
+                    {
+                        title:'权限value',
+                        key:'permissionValue'
+                    },
+                    {
+                        title:'权限名称',
+                        key:'permissionName'
+                    },
+                    {
+                        title:'修改时间',
+                        key:'permissionLastUpdateTime'
+                    }
+                ],
+                permissionColumns:[
+                    {
+                        type: 'expand',
+                        width: 50,
+                        render: (h, params) => {
+                            return h('expandRow', {
+                                props: {
+                                    row: params.row.children,
+                                    treecolumns:this.permissionChildrenColumns,
+                                    loading:this.permissionTableLoading
+                                },
+                            })
+                        }
+                    },
+                    {
+                        title:'权限模块名称',
+                        key:'permissionModule'
+                    },
+                ]
+            }
+        },
+        methods:{
+            expertData(){
+                const form = document.createElement('form')
+                form.action = "/permission/expertPermission"
+                form.method = 'GET'
+                form.style.display = 'none'
+                const permissionName=document.createElement("input");
+                permissionName.name="permissionName"
+                permissionName.value = this.permissionPaging.permissionName;
+
+
+                const button = document.createElement('input')
+                button.type = 'submit'
+                form.appendChild(permissionName);
+                form.appendChild(button)
+                document.body.appendChild(form)
+                form.submit()
+                document.body.removeChild(form)
+            },
+            permissionPageChange(page){
+                this.permissionPaging.page=page;
+                this.queryPermission();
+            },
+            permissionRowsChange(rows){
+                this.permissionPaging.rows=rows;
+                this.queryPermission();
+            },
+            queryPermissionQuery(){
+                this.permissionPaging.page=1;
+                this.queryPermission();
+            },
+            queryPermission(){
+                window.setTimeout(()=>{
+                    permissionshow();
+                },100)
+                this.permissionTableLoading=true;
+                this.permissionData=[];
+                axios.get('/permission/queryByPermissionName',{
+                    params:this.permissionPaging
+                })
+                    .then((response)=>{
+                        this.permissionData=response.data.rows;
+                        this.permissionPaging.total=response.data.total;
+                        this.permissionTableLoading=false;
+
+                    })
+                    .catch((error)=>{
+                        try {
+                            if(error.response.data.success==false){
+                                if(error.response.data.message=="请先登录"){
+                                    window.top.location.href="/";
+                                }
+                                this.$Notice.error({
+                                    title: '删除失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '删除失败',
+                                desc:  ''
+                            });
+                        }
+                    })
+            },
+            reloadHTML(){
+                this.$Spin.show();
+                this.$Loading.start();
+                setTimeout(() => {
+                    this.$Spin.hide();
+                    this.$Loading.finish();
+                    window.location.reload();
+                }, 1000);
+            }
+        },
+        mounted(){
+            this.queryPermission();
+        }
+    }
+    var Component = Vue.extend(maindata)
+    new Component().$mount('#app')
+</script>
+</html>

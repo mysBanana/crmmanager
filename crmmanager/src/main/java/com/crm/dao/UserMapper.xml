@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crm.dao.UserMapper">
+    <select id="queryUser" parameterType="usersQuery" resultType="users">
+      SELECT SQL_CALC_FOUND_ROWS * FROM users
+      <where>
+          <if test="userName!=null and userName !=''">
+          loginName like "%"#{userName}"%"
+      </if>
+          <if test="isLockout!=null and isLockout !=''">
+                  and IsLockout=#{isLockout}
+          </if>
+          <if test="beginCreateTime!=null">
+              and createTime &gt;=#{beginCreateTime}
+          </if>
+          <if test="endCreateTime!=null">
+              and createTime &lt;=#{endCreateTime}
+          </if>
+          <if test="protectEMail!=null and protectEMail!=''">
+              and protectEMail like "%"#{protectEMail}"%"
+          </if>
+          <if test="protectMTel!=null and protectMTel!=''">
+              and protectMTel like "%"#{protectMTel}"%"
+          </if>
+          <if test="1==1">
+              and Id not in(select deleteId from recycling where deleteTable='users')
+          </if>
+      </where>
+      <if test="order!=null and order !=''">
+           order by ${order}
+      </if>
+        <if test="rows!=0">
+            limit #{offsex},#{rows}
+        </if>
+    </select>
+
+
+    <insert id="addUser" parameterType="users">
+      INSERT INTO  users(id,loginName, `password`, protectEMail, protectMTel)
+      VALUES (#{id},#{loginName},#{password},#{protectEMail},#{protectMTel})
+    </insert>
+
+    <select id="queryUserByname" resultType="users">
+      select * from users where LoginName = #{un}
+    </select>
+
+    <select id="queryUserCount" resultType="int">
+        SELECT FOUND_ROWS();
+    </select>
+
+    <delete id="deleteUser">
+        delete from users where id=#{id}
+    </delete>
+
+    <update id="updateUser">
+        update users
+        <set>
+          <if test="mTel!=null and mTel!=''">
+              protectMTel=#{mTel},
+          </if>
+            <if test="email!=null and email!=''">
+                ProtectEMail=#{email},
+            </if>
+        </set>
+        where id = #{id}
+    </update>
+
+    <update id="updateUserFieldValue">
+        update users set ${fieldName}=#{fieldValue}
+        where id=#{id}
+    </update>
+
+    <insert id="userSetRole" parameterType="list">
+      INSERT INTO userroles VALUES
+          <foreach collection="list" separator="," item="item" index="index">
+              (#{item.id},#{item.userId},#{item.roleId})
+          </foreach>
+    </insert>
+
+    <delete id="userRomeveRole" parameterType="list">
+      delete from userroles where id in
+      <foreach collection="list" open="(" close=")" separator="," item="item">
+        #{item}
+      </foreach>
+    </delete>
+
+    <update id="updateUserPassword">
+        update users SET Password=#{password} where LoginName=#{userName}
+    </update>
+
+    <select id="queryUserByUserId" resultType="users">
+        SELECT * FROM users WHERE Id=#{userId} and Id not in(select deleteId from recycling where deleteTable='users')
+    </select>
+
+    <select id="queryUsersAll" resultType="users">
+        SELECT * FROM users where Id not in(select deleteId from recycling where deleteTable='users');
+    </select>
+
+    <select id="checkUserName" resultType="int">
+        SELECT count(Id) FROM users WHERE LoginName=#{name}
+    </select>
+
+    <update id="updateUserName">
+        update users set LoginName=#{name} where Id=#{id}
+    </update>
+
+</mapper>

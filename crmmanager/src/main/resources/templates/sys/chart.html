@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="/css/buttons.css">
+    <link rel="stylesheet" href="/js/iview/dist/styles/iview.css">
+    <link rel="stylesheet" href="/js/echarts/style.min.css">
+    <script src="/js/vue.js"></script>
+    <script src="/js/iview/dist/iview.js"></script>
+    <script src="/js/axios.js"></script>
+    <script src="/js/echarts/echarts.min.js"></script>
+    <script src="/js/echarts/index.min.js"></script>
+    <script src="/js/jquery-3.3.1.js"></script>
+    <script src="/js/permissionShow.js"></script>
+    <style>
+        html body{
+            width: 100%;
+            height: auto;
+            background-color: rgb(245,245,245);
+        }
+        #app{
+
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div style="display: flex;justify-content: space-between;align-items: center;">
+            <div>
+                <i-button icon="loop" type="info" @click="reloadHTML">刷新</i-button>
+            </div>
+        </div>
+        <row>
+            <i-col :span="12" permissionerequier="chart:getStudentByStuStatusdDstribution">
+                <h2 style="text-align: center;">学生学历比例</h2>
+                <ve-ring :data="studentEducationChartData" :settings="studentEducationChartSetting"></ve-ring>
+            </i-col>
+            <i-col :span="12" permissionerequier="chart:getStudentSourceChannel">
+                <h2 style="text-align: center;">学生来源渠道比例</h2>
+                <ve-ring :data="studentSourceChannelData" :settings="studentSourceChannelSetting"></ve-ring>
+            </i-col>
+        </row>
+        <row>
+            <i-col :span="12" permissionerequier="chart:getStateDstribution">
+                <h2 style="text-align: center;">学生个人状态比例</h2>
+                <ve-ring :data="stateDstributionData" :settings="stateDstributionSetting"></ve-ring>
+            </i-col>
+            <i-col :span="12" permissionerequier="chart:getIsplayDstribution">
+                <h2 style="text-align: center;">学生是否缴费比例</h2>
+                <ve-ring :data="isplayDstributionData" :settings="isplayDstributionSetting"></ve-ring>
+            </i-col>
+        </row>
+        <row>
+            <i-col :span="12" permissionerequier="chart:getAddressDstribution">
+                <h2 style="text-align: center;">学生城市分布比例</h2>
+                <ve-histogram :data="addressDstributionData" :settings="addressDstributionSetting"></ve-histogram>
+            </i-col>
+            <i-col :span="12">
+            </i-col>
+        </row>
+        <div></div>
+    </div>
+</body>
+<script>
+    let maindata={
+        data(){
+            return{
+                studentEducationChartData:{
+                    columns: ['StuStatus', 'num'],
+                    rows:[]
+                },
+                studentEducationChartSetting:{
+                    roseType: 'radius'
+                },
+                studentSourceChannelData:{
+                    columns: ['MsgSource', 'num'],
+                    rows:[]
+                },
+                studentSourceChannelSetting:{
+                    roseType: 'radius'
+                },
+                stateDstributionData:{
+                    columns: ['PerState', 'num'],
+                    rows:[]
+                },
+                stateDstributionSetting:{
+                    roseType: 'radius'
+                },
+                isplayDstributionData:{
+                    columns: ['IsPay', 'num'],
+                    rows:[]
+                },
+                isplayDstributionSetting:{
+                    roseType: 'radius'
+                },
+                addressDstributionData:{
+                    columns: ['Address','num'],
+                    rows:[
+
+                    ]
+                },
+                addressDstributionSetting:{
+                    metrics: [ 'num'],
+                    labelMap: {
+                        num: '人数',
+                    }
+
+                },
+            }
+        },
+        methods:{
+            addressDstributionMethod(){
+                axios.get('/chart/getAddressDstribution')
+                    .then((response)=>{
+                        this.addressDstributionData.rows=[];
+                        this.addressDstributionData.rows=response.data;
+                    })
+                    .catch((error)=>{
+
+                        try {
+                            if(error.response.data.success==false){
+                                if(error.response.data.message=="请先登录"){
+                                    window.top.location.href="/";
+                                }
+                                this.$Notice.error({
+                                    title: '查询失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '查询失败',
+                                desc:  ''
+                            });
+                        }
+                        console.log(error)
+                    })
+            },
+            isPayMethod(){
+                axios.get('/chart/getIsplayDstribution')
+                    .then((response)=>{
+                        this.isplayDstributionData.rows=[];
+                        this.isplayDstributionData.rows=response.data.map(row=>{
+                            if(row.IsPay==null){
+                                row.IsPay="未填写";
+                            }
+                            return row;
+                        });
+                    })
+                    .catch((error)=>{
+
+                        try {
+                            if(error.response.data.success==false){
+                                if(error.response.data.message=="请先登录"){
+                                    window.top.location.href="/";
+                                }
+                                this.$Notice.error({
+                                    title: '查询失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '查询失败',
+                                desc:  ''
+                            });
+                        }
+                        console.log(error)
+                    })
+            },
+            stateDstributionMethod(){
+                axios.get('/chart/getStateDstribution')
+                    .then((response)=>{
+                        this.stateDstributionData.rows=[];
+                        this.stateDstributionData.rows=response.data;
+                    })
+                    .catch((error)=>{
+
+                        try {
+                            if(error.response.data.success==false){
+                                if(error.response.data.message=="请先登录"){
+                                    window.top.location.href="/";
+                                }
+                                this.$Notice.error({
+                                    title: '查询失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '查询失败',
+                                desc:  ''
+                            });
+                        }
+                        console.log(error)
+                    })
+            },
+            studentSourceChannelMethod(){
+                axios.get('/chart/getStudentSourceChannel')
+                    .then((response)=>{
+                        this.studentSourceChannelData.rows=[];
+                        this.studentSourceChannelData.rows=response.data;
+                    })
+                    .catch((error)=>{
+
+                        try {
+                            if(error.response.data.success==false){
+                                if(error.response.data.message=="请先登录"){
+                                    window.top.location.href="/";
+                                }
+                                this.$Notice.error({
+                                    title: '查询失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '查询失败',
+                                desc:  ''
+                            });
+                        }
+                        console.log(error)
+                    })
+            },
+            studentEducationChartMethod(){
+                axios.get('/chart/getStudentByStuStatusdDstribution')
+                    .then((response)=>{
+                        this.studentEducationChartData.rows=[];
+                        this.studentEducationChartData.rows=response.data;
+                    })
+                    .catch((error)=>{
+
+                        try {
+                            if(error.response.data.success==false){
+                                if(error.response.data.message=="请先登录"){
+                                    window.top.location.href="/";
+                                }
+                                this.$Notice.error({
+                                    title: '查询失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '查询失败',
+                                desc:  ''
+                            });
+                        }
+                        console.log(error)
+                    })
+            },
+            reloadHTML(){
+                this.$Spin.show();
+                this.$Loading.start();
+                setTimeout(() => {
+                    this.$Spin.hide();
+                    this.$Loading.finish();
+                    window.location.reload();
+                }, 1000);
+            }
+        },
+        mounted(){
+            this.studentEducationChartMethod();
+            this.studentSourceChannelMethod();
+            this.stateDstributionMethod();
+            this.isPayMethod();
+            this.addressDstributionMethod();
+            window.setTimeout(()=>{
+                permissionshow();
+            },100)
+        }
+    }
+    var Component = Vue.extend(maindata)
+    new Component().$mount('#app')
+</script>
+</html>

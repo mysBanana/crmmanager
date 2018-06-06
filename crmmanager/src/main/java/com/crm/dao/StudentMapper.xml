@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crm.dao.StudentMapper">
+
+    <select id="queryStudent" resultType="students" parameterType="studentQuery">
+      select SQL_CALC_FOUND_ROWS s.*,a.AskerName from students s LEFT JOIN askers a on s.AskerId=a.AskerId
+        <where>
+            <if test="name!=null and name!=''">
+                and Name like "%"#{name}"%"
+            </if>
+            <if test="phone!=null and phone!=''">
+                and Phone like "%"#{phone}"%"
+            </if>
+            <if test="netPusherId!=null and netPusherId!=''">
+                and NetPusherId like "%"#{netPusherId}"%"
+            </if>
+            <if test="askerId!=null and askerId!=''">
+                and a.AskerId=#{askerId}
+            </if>
+            <if test="isPay!=null and isPay!=''">
+                and IsPay=#{isPay}
+            </if>
+            <if test="isValid!=null and isValid!=''">
+                and IsValid=#{isValid}
+            </if>
+            <if test="isReturnVist!=null and isReturnVist!=''">
+                and IsReturnVist=#{isReturnVist}
+            </if>
+            <if test="qq!=null and qq!=''">
+                and QQ =#{qq}
+            </if>
+            <if test="createStart!=null">
+                and CreateTime &gt;=#{createStart}
+            </if>
+            <if test="createEnd!=null">
+                and CreateTime &lt;=#{createEnd}
+            </if>
+            <if test="homeStart!=null">
+                and HomeTime &gt;=#{homeStart}
+            </if>
+            <if test="homeEnd!=null">
+                and HomeTime &lt;=#{homeEnd}
+            </if>
+            <if test="returnVistStart!=null">
+                and FirstVisitTime &gt;=#{returnVistStart}
+            </if>
+            <if test="returnVistEnd!=null">
+                and FirstVisitTime &lt;=#{returnVistEnd}
+            </if>
+            <if test="payStart!=null">
+                and PayTime &gt;=#{payStart}
+            </if>
+            <if test="payEnd!=null">
+                and PayTime &lt;=#{payEnd}
+            </if>
+            <if test="inClassStart!=null">
+                and InClassTime  &gt;=#{inClassStart}
+            </if>
+            <if test="inClassEnd!=null">
+                and InClassTime &lt;=#{inClassEnd}
+            </if>
+            <if test="1==1">
+                and Id not in(select deleteId from recycling where deleteTable='students')
+            </if>
+        </where>
+        <if test="rows!=0">
+            limit #{offsex},#{rows}
+        </if>
+    </select>
+
+    <select id="queryStudentCount" resultType="int">
+        SELECT FOUND_ROWS();
+    </select>
+
+    <insert id="addStudent" useGeneratedKeys="true" keyProperty="id"   parameterType="students" >
+      INSERT INTO students(Name,Sex,Age,Phone,StuStatus,PerState,MsgSource,SourceUrl,SourceKeyWord,QQ,WeiXin,IsBaoBei,Content,NetPusherId,CreateUser)
+      VALUES (#{name},#{sex},#{age},#{phone},#{stuStatus},#{perState},#{msgSource},#{sourceUrl},#{sourceKeyWord},#{qq},#{weiXin},#{isBaoBei},#{content},#{netPusherId},#{createUser})
+    </insert>
+
+    <update id="updateStudentAkser" parameterType="students">
+        update students set AskerId=#{askerId} where Id=#{id}
+    </update>
+
+    <update id="updateStudent" parameterType="students">
+        UPDATE students
+        <set>
+            <if test="name!=null and name!=''">
+                Name=#{name},
+            </if>
+            <if test="age!=-1">
+              Age=#{age},
+            </if>
+            <if test="sex!=null and sex!=''">
+                Sex=#{sex},
+            </if>
+            <if test="phone!=null and phone!=''">
+                Phone=#{phone},
+            </if>
+            <if test="phone!=null and phone!=''">
+                Phone=#{phone},
+            </if>
+            <if test="stuStatus!=null and stuStatus!=''">
+                StuStatus=#{stuStatus},
+            </if>
+            <if test="perState!=null and perState!=''">
+                PerState=#{perState},
+            </if>
+            <if test="msgSource!=null and msgSource!=''">
+                MsgSource=#{msgSource},
+            </if>
+            <if test="sourceUrl!=null and sourceUrl!=''">
+                SourceUrl=#{sourceUrl},
+            </if>
+            <if test="sourceKeyWord!=null and sourceKeyWord!=''">
+                SourceKeyWord=#{sourceKeyWord},
+            </if>
+            <if test="address!=null and address!=''">
+                Address=#{address},
+            </if>
+            <if test="stuConcern!=null and stuConcern!=''">
+                StuConcern=#{stuConcern},
+            </if>
+            <if test="fromPart!=null and fromPart!=''">
+                FromPart=#{fromPart},
+            </if>
+            <if test="qq!=null and qq!=''">
+                QQ=#{qq},
+            </if>
+            <if test="weiXin!=null and weiXin!=''">
+                WeiXin=#{weiXin},
+            </if>
+            <if test="isBaoBei!=null and isBaoBei!=''">
+                IsBaoBei=#{isBaoBei},
+            </if>
+            <if test="askerId!=null and askerId!=''">
+                AskerId=#{askerId},
+            </if>
+            <if test="createUser!=null and createUser!=''">
+                CreateUser=#{createUser},
+            </if>
+            <if test="ziXunName!=null and ziXunName!=''">
+                ZiXunName=#{ziXunName},
+            </if>
+            <if test="learnForward!=null and learnForward!=''">
+                LearnForward=#{learnForward},
+            </if>
+            <if test="record!=null and record!=''">
+                Record=#{record},
+            </if>
+            <if test="isValid!=null and isValid!=''">
+                IsValid=#{isValid},
+            </if>
+            <if test="lostValid!=null and lostValid!=''">
+                LostValid=#{lostValid},
+            </if>
+            <if test="isReturnVist!=null and isReturnVist!=''">
+                IsReturnVist=#{isReturnVist},
+            </if>
+            <if test="firstVisitTime!=null">
+                FirstVisitTime=#{firstVisitTime},
+            </if>
+            <if test="isHome!=null and isHome!=''">
+                IsHome=#{isHome},
+            </if>
+            <if test="homeTime!=null">
+                HomeTime=#{homeTime},
+            </if>
+            <if test="preMoney!=null and preMoney!=''">
+                PreMoney=#{preMoney},
+            </if>
+            <if test="preMoneyTime!=null">
+                PreMoneyTime=#{preMoneyTime},
+            </if>
+            <if test="isPay!=null and isPay!=''">
+                IsPay=#{isPay},
+            </if>
+            <if test="payTime!=null">
+                PayTime=#{payTime},
+            </if>
+            <if test="money!=-1">
+                money=#{money},
+            </if>
+            <if test="isReturnMoney!=null and isReturnMoney!=''">
+                IsReturnMoney=#{isReturnMoney},
+            </if>
+            <if test="returnMoneyReason!=null and returnMoneyReason!=''">
+                ReturnMoneyReason=#{returnMoneyReason},
+            </if>
+            <if test="isInClass!=null and isInClass!=''">
+                IsInClass=#{isInClass},
+            </if>
+            <if test="inClassTime!=null">
+                inClassTime=#{inClassTime},
+            </if>
+            <if test="inClassContent!=null and inClassContent!=''">
+                InClassContent=#{inClassContent},
+            </if>
+            <if test="askerContent!=null and askerContent!=''">
+                AskerContent=#{askerContent},
+            </if>
+        </set>
+        where Id=#{id}
+    </update>
+
+    <delete id="deleteStudentById" parameterType="int">
+        DELETE FROM students WHERE Id=#{studentId}
+    </delete>
+
+    <select id="getStudent" resultType="students">
+        SELECT * FROM students WHERE Id=#{studentId}
+    </select>
+
+    <update id="updateStudentAkserIdNull">
+        UPDATE students SET  AskerId=NULL WHERE AskerId=#{askerId}
+    </update>
+
+    <update id="updateStudentnetIdNull">
+        UPDATE students SET  NetPusherId=NULL WHERE NetPusherId=#{netId}
+    </update>
+</mapper>

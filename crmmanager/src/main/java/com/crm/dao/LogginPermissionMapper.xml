@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crm.dao.LogginPermissionMapper">
+
+    <insert id="addLogginPermission" parameterType="logginPermission">
+        INSERT INTO logginpermission(id, userid, comment,isSuccess,string0)
+                VALUES (#{id},#{userid},#{comment},#{isSuccess},#{string0})
+    </insert>
+
+    <select id="queryLogginPermission" parameterType="logginQuery" resultType="logginPermission">
+        SELECT SQL_CALC_FOUND_ROWS a.id,a.userid,a.comment,a.createTime,a.isSuccess,a.string0,b.LoginName as 'string1' FROM logginpermission a left join users b on a.userid=b.Id
+        <where>
+            <if test="name!=null and name!=''">
+                and b.LoginName like "%"#{name}"%"
+            </if>
+            <if test="comment!=null and comment!=''">
+                and a.comment like "%"#{comment}"%"
+            </if>
+            <if test="createTimeStart!=null">
+                and a.createTime >= #{createTimeStart}
+            </if>
+            <if test="createTimeEnd!=null">
+                and a.createTime &lt;= #{createTimeEnd}
+            </if>
+            <if test="isSuccess!=null and isSuccess!=''">
+                and a.isSuccess like "%"#{isSuccess}"%"
+            </if>
+        </where>
+        <if test="rows!=0">
+            limit #{offsex},#{rows}
+        </if>
+    </select>
+
+    <select id="queryLogginPermissionColumn" resultType="int">
+        SELECT FOUND_ROWS();
+    </select>
+
+
+</mapper>

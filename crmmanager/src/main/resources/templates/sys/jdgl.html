@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="/css/buttons.css">
+    <link rel="stylesheet" href="/js/iview/dist/styles/iview.css">
+    <script src="/js/vue.js"></script>
+    <script src="/js/iview/dist/iview.js"></script>
+    <script src="/js/axios.js"></script>
+    <script src="/js/jquery-3.3.1.js"></script>
+    <script src="/js/permissionShow.js"></script>
+    <style>
+        html body{
+            width: 100%;
+            height: auto;
+            background: rgb(2,0,36);
+            background: linear-gradient(90deg, rgba(2,0,36,1) 0%, rgba(235,170,217,0.9699230033810399) 0%, rgba(0,212,255,1) 100%);
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <row>
+        <i-col :span="3">
+            <i-input placeholder="请输入查询的角色名" v-model="roleNamequery"></i-input>
+        </i-col>
+        <i-col :span="2">
+            <i-button   @click="roleSerch">查询</i-button>
+        </i-col>
+        <i-col :span="4">
+            <i-button icon="plus" permissionerequier="role:addRole" type="success" @click="addRoleModelShow">新增角色</i-button>
+        </i-col>
+        <i-col :span="5" permissionerequier="role:expertRoles">
+            <button @click="expertData"  class="button button-small  button-3d button-royal button-rounded">
+                <Icon type="android-download"></Icon>
+                导出数据为表格
+            </button>
+        </i-col>
+        <i-col :span="3">
+            <button permissionerequier="role:getTemplate" @click="templateShow"  class="button button-small  button-3d button-royal button-rounded button-pill ">
+                下载模板
+            </button>
+        </i-col>
+        <i-col :span="5" permissionerequier="role:importUser">
+            <upload :show-upload-list="false" action="/role/importRole" :on-success="importsuc" :on-error="importerr">
+                <button  class="button button-small button-jumbo  button-3d button-pill">
+                    <Icon type="android-download"></Icon>
+                    导入角色
+                </button>
+            </upload>
+        </i-col>
+        <i-col :span="1">
+            <i-button icon="loop" type="info" @click="reloadHTML">刷新</i-button>
+        </i-col>
+    </row>
+    <div style="margin-top: 10px;">
+        <i-table stripe permissionerequier="role:query" :data="rolesData" :loading="roleTableLoading" :columns="roleTable"></i-table>
+    </div>
+    <div style="display: flex;justify-content: center;align-items: center;margin-top: 10px;">
+        <page :total="total" @on-page-size-change="pgeSizeChange" @on-change="pageChanage" :loading="roleTableLoading" :page-size="rows" :current="page" show-sizer show-elevator></page>
+    </div>
+    <div style="display: none;">
+        <modal
+                v-model="permissionSetModal"
+                title="权限设置"
+                @on-ok="setpermissionMethod"
+        >
+            <tree ref="permissiontree" :data="permssionAllDate"  show-checkbox></tree>
+        </modal>
+
+        <modal v-model="moduleSetModal" title="模块设置" @on-ok="setRoleModuleMethod">
+            <tree ref="moduletree" :data="moduleAllDate" show-checkbox></tree>
+        </modal>
+
+        <modal v-model="addRoleModal"   title="新增角色">
+            <i-form style="" :label-width="100" :model="addRoleForm"  label-position="right"  ref="addRoleRef" :rules="addRoleRules">
+                <form-item  label="角色名"  prop="roleName">
+                    <i-input type="text"  v-model="addRoleForm.roleName"  placeholder="请输入角色名">
+                    </i-input>
+                </form-item >
+            </i-form>
+            <div slot="footer">
+                <i-button type="success" size="large" long  @click="addRole">确定新增</i-button>
+            </div>
+        </modal>
+
+        <modal v-model="updateRoleModal" title="修改角色">
+            <i-form style="" :label-width="100" :model="updateRoleForm"  label-position="right"  ref="updateRoleRef" :rules="updateRoleRules">
+                <form-item  label="角色名"  prop="roleName">
+                    <i-input type="text"  v-model="updateRoleForm.roleName"  placeholder="请输入角色名">
+                    </i-input>
+                </form-item >
+            </i-form>
+            <div slot="footer">
+                <i-button type="success" size="large" long  @click="updateRole">确定修改</i-button>
+            </div>
+        </modal>
+
+        <modal v-model="showTemplateMadal" title="选择下载列">
+            <checkbox-group v-model="TemplateColumnCheck">
+                <checkbox :disabled="o.noNull" :label="o.name" v-for="(o,index) in showTemplateColumn" :key="index">
+                    <span>{{o.name}}</span>
+                </checkbox>
+            </checkbox-group>
+            <div slot="footer">
+                <i-button type="success" size="large" long  @click="downTemplate">下载</i-button>
+            </div>
+        </modal>
+    </div>
+</div>
+</body>
+<script>
+    let maindata={
+        data(){
+            return{
+                TemplateColumnCheck:[],
+                showTemplateColumn:[],
+                showTemplateMadal:false,
+                roleNamequery:'',//查询的角色名
+                updateRoleRules:{
+                    roleName:[
+                        { required: true, message: '请输入用户名', trigger: 'blur' }
+                    ]
+
+                },
+                updateRoleForm:{
+                    roleId:'',
+                    roleName:''
+                },
+                updateRoleModal:false,
+                addRoleRules:{
+                    roleName:[
+                        { required: true, message: '请输入用户名', trigger: 'blur' }
+                    ]
+                },
+                addRoleForm:{
+                    roleName:''
+                },
+                addRoleModal:false,
+                moduleSetModal:false,
+                setRolesIdActive:'',
+                moduleAllDate:[],
+                permssionAllDate:[],
+                permissionSetModal:false,
+                roleTable:[
+                    {
+                        title:'角色名称',
+                        key:'name'
+                    },
+                    {
+                        title:'模块操作',
+                        key:'moduleSet',
+                        render: (h, params) => {
+                            return h('i-button',{
+                                params:{
+                                    type:'text'
+                                },
+                                attrs:{
+                                    permissionerequier:'module:queryAll'
+                                },
+                                on:{
+                                    click:()=>{
+                                        this.moduleSetModal=true;
+                                        this.setRolesIdActive=params.row.id;
+                                        this.moduleAllDate=[];
+                                        axios.get('/module/queryModuleAllChe',{
+                                            params:{
+                                                roleName:params.row.name,
+                                            }
+                                        })
+                                            .then((response)=>{
+                                                this.moduleAllDate=response.data;
+                                            })
+                                            .catch((error)=>{
+                                                try {
+                                                    if(error.response.data.message=="请先登录"){
+                                                        window.top.location.href="/";
+                                                    }
+                                                    if(error.response.data.success==false){
+                                                        this.$Notice.error({
+                                                            title: '查询失败',
+                                                            desc:  error.response.data.message
+                                                        });
+                                                    }
+                                                }
+                                                catch(err) {
+                                                    this.$Notice.error({
+                                                        title: '查询失败',
+                                                        desc:  ''
+                                                    });
+                                                }                                               console.log(error)
+                                            })
+                                    }
+                                }
+                            },params.row.moduleSet)
+                        }
+                    },
+                    {
+                        title:'权限操作',
+                        key :'permissionSet',
+                        render: (h, params) => {
+                            return h('i-button',{
+                                params:{
+                                    type:'text'
+                                },
+                                attrs:{
+                                    permissionerequier:'permission:queryAll'
+                                },
+                                on:{
+                                    click:()=>{
+                                        //this.permissionSetModal=true;
+                                        //this.permssionAllDate
+                                        this.permssionAllDate=[];
+                                        this.setRolesIdActive=params.row.id;
+                                        axios.get('/permission/queryAll',{
+                                            params:{
+                                                roleId:params.row.id
+                                            }
+                                        })
+                                            .then((response)=>{
+                                                this.permssionAllDate=response.data;
+                                                this.permissionSetModal=true;
+                                            })
+                                            .catch((error)=>{
+                                                try {
+                                                    if(error.response.data.message=="请先登录"){
+                                                        window.top.location.href="/";
+                                                    }
+                                                    if(error.response.data.success==false){
+                                                        this.$Notice.error({
+                                                            title: '查询失败',
+                                                            desc:  error.response.data.message
+                                                        });
+                                                    }
+                                                }
+                                                catch(err) {
+                                                    this.$Notice.error({
+                                                        title: '查询失败',
+                                                        desc:  ''
+                                                    });
+                                                }                                               console.log(error)
+                                            })
+                                    }
+                                }
+                            },params.row.permissionSet)
+                        }
+                    },{
+                        title:'角色操作',
+                        key:'roleSet',
+                        render: (h, params) => {
+                            return h('div',[
+                                h('i-button',{
+                                    type:'text',
+                                    attrs:{
+                                        permissionerequier:'role:updateRole'
+                                    },
+                                    on:{
+                                        click:()=>{
+                                            this.updateRoleForm.roleName=params.row.name;
+                                            this.updateRoleModal=true;
+                                            this.updateRoleForm.roleId=params.row.id;
+
+                                        }
+                                    }
+                                },params.row.roleSet[0]),
+                                h('i-button',{
+                                    type:'text',
+                                    attrs:{
+                                        permissionerequier:'role:deleteRole'
+                                    },
+                                    on:{
+                                        click:()=>{
+
+
+                                            this.$Modal.confirm({
+                                                onOk:()=>{
+                                                    let id=params.row.id;
+                                                    axios.delete('/role/deleteRole/'+id)
+                                                        .then((response)=>{
+                                                            if(response.data.success){
+                                                                this.$Notice.success({
+                                                                    title: '删除成功',
+                                                                    desc:  ''
+                                                                });
+                                                                this.queryRolesPaging();
+                                                            }else{
+
+                                                            }
+                                                        })
+                                                        .catch((error)=>{
+                                                            try {
+                                                                if(error.response.data.success==false){
+                                                                    if(error.response.data.message=="请先登录"){
+                                                                        window.top.location.href="/";
+                                                                    }
+                                                                    this.$Notice.error({
+                                                                        title: '删除失败',
+                                                                        desc:  error.response.data.message
+                                                                    });
+                                                                }
+                                                            }
+                                                            catch(err) {
+                                                                this.$Notice.error({
+                                                                    title: '删除失败',
+                                                                    desc:  ''
+                                                                });
+                                                            }
+                                                        })
+                                                },
+                                                render: (h) => {
+                                                    return h('h1', {
+                                                        style:{
+                                                            textAlign:'center'
+                                                        }
+                                                    },'!是否要删除角色')
+                                                }
+                                            })
+
+
+                                        }
+                                    }
+                                },params.row.roleSet[1]),
+                            ])
+                        }
+                    }
+                ],
+                page:1,
+                total:0,
+                rows:10,
+                roleTableLoading:true,
+                rolesData:[]
+            }
+        },
+        methods:{
+
+            //下载模板
+            downTemplate(){
+                if(this.TemplateColumnCheck.length==0||this.TemplateColumnCheck==null){
+                    this.$Message.error("未选择需要导入的列");
+                    return
+                }
+                const form = document.createElement('form')
+                form.action = "/role/expertTemplate"
+                form.method = 'GET'
+                const names=document.createElement("input");
+                names.name="names"
+                names.value = this.TemplateColumnCheck;
+                form.style.display = 'none'
+                form.appendChild(names);
+                document.body.appendChild(form)
+                form.submit()
+                document.body.removeChild(form)
+                this.showTemplateMadal=false;
+            },
+            //打开模板模态框
+            templateShow(){
+                axios.get('/role/getTemplate')
+                    .then((response)=>{
+                        this.showTemplateColumn=response.data;
+                        this.TemplateColumnCheck=response.data.filter(row=>{
+                            return row.noNull
+                        })
+                        this.TemplateColumnCheck=this.TemplateColumnCheck.map(row=>{
+                            return row.name;
+                        })
+                        console.log(this.TemplateColumnCheck)
+                        this.showTemplateMadal=true;
+                    })
+                    .catch((error)=>{
+                        try {
+                            if(error.response.data.success==false){
+                                console.log(error.response.data.message)
+                                if(error.response.data.message=="请先登录"){
+                                    //  window.top.location.href="/";
+                                }
+                                this.$Notice.error({
+                                    title: '查询失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '查询失败',
+                                desc:  ''
+                            });
+                        }
+                    })
+            },
+            importsuc(response, file, fileList){
+                if(response.success){
+                    this.$Message.success("成功");
+                }else{
+                    this.$Message.error(response.message);
+                }
+
+            },
+            importerr(error, file, fileList){
+                this.$Message.error(error.message);
+            },
+            roleSerch(){
+                this.page=1;
+                this.queryRolesPaging();
+            },
+            //修改树节点不是最低级的checked选项
+            nodeupdateTreeCheck(node){
+                if(node.children!=null && node.children.length!=0){
+                    node.checked=false;
+
+                    this.nodeupdateTreeCheck(node.children);
+                }
+            },
+            //修改角色
+            updateRole(){
+               // this.updateRoleRules roleId roleName
+
+
+                this.$refs['updateRoleRef'].validate((valid) => {
+                    if (valid) {
+                        axios.put('/role/updateRole',{
+                            id:this.updateRoleForm.roleId,
+                            name:this.updateRoleForm.roleName
+                        })
+                            .then((response)=>{
+                                if(response.data.success){
+                                    this.updateRoleModal=false;
+                                    this.queryRolesPaging();
+                                    this.$Notice.success({
+                                        title: '修改成功',
+                                        desc:  ''
+                                    });
+                                }else{
+
+                                    this.$Notice.error({
+                                        title: '修改失败',
+                                        desc:  ''
+                                    });
+                                }
+                            })
+                            .catch((error)=>{
+
+                                try {
+                                    if(error.response.data.success==false){
+                                        if(error.response.data.message=="请先登录"){
+                                            window.top.location.href="/";
+                                        }
+                                        this.$Notice.error({
+                                            title: '修改失败',
+                                            desc:  error.response.data.message
+                                        });
+                                    }
+                                }
+                                catch(err) {
+                                    this.$Notice.error({
+                                        title: '修改失败',
+                                        desc:  ''
+                                    });
+                                }
+                                console.log(error)
+                            })
+
+
+                    } else {
+                        this.$Message.error('字段错误!');
+                    }
+                })
+
+            },
+            //新增角色模态框显示
+            addRoleModelShow(){
+                this.addRoleModal=true;
+                this.addRoleForm.roleName=""
+            },
+            //新增角色
+            addRole(){
+                this.$refs['addRoleRef'].validate((valid) => {
+                    if (valid) {
+                        let roleName=this.addRoleForm.roleName;
+                        let uuid = "cms"+this.guid();
+                        axios.post('/role/addRole',{
+                            id:uuid,
+                            name:roleName
+                        })
+                            .then((response)=>{
+
+                                if(response.data.success){
+                                    this.addRoleModal=false;
+                                    this.queryRolesPaging();
+                                    this.$Notice.success({
+                                        title: '新增成功',
+                                        desc:  ''
+                                    });
+                                }else{
+
+                                    this.$Notice.error({
+                                        title: '新增失败',
+                                        desc:  ''
+                                    });
+                                }
+                            })
+                            .catch((error)=>{
+
+                                try {
+                                    if(error.response.data.success==false){
+                                        if(error.response.data.message=="请先登录"){
+                                            window.top.location.href="/";
+                                        }
+                                        this.$Notice.error({
+                                            title: '新增失败',
+                                            desc:  error.response.data.message
+                                        });
+                                    }else{
+
+                                        this.$Notice.error({
+                                            title: '新增失败',
+                                            desc:  ''
+                                        });
+                                    }
+                                }
+                                catch(err) {
+                                    this.$Notice.error({
+                                        title: '新增失败',
+                                        desc:  ''
+                                    });
+                                }
+                                console.log(error)
+                            })
+
+
+                    } else {
+                        this.$Message.error('字段错误!');
+                    }
+                })
+            },
+            //用于生成UUID
+            S4() {
+                return (((1+Math.random())*0x10000)|0).toString(16).substring(1);
+            },
+            //用于生成UUID
+            guid() {
+                return (this.S4()+this.S4()+"-"+this.S4()+"-"+this.S4()+"-"+this.S4()+"-"+this.S4()+this.S4()+this.S4());
+            },
+            findTreeModuleId(tree,id){
+                for(let i=0;i<tree.length;i++){
+                    let node=tree[i];
+                    if(node.id==id){ //判断id是否一样
+                        return node;
+                    }else {
+                        if(node.children!=null && node.children.length!=0){ //判断是否还有子级菜单
+                            let n= this.findTreeModuleId(node.children,id);
+                            if(n!="" && n!=null){
+                                return n;
+                            }
+                        }else{
+                                if(i>=tree.length-1){
+                                    return ""
+                                }
+                        }
+                    }
+                }
+            },
+            //角色设置模块
+            setRoleModuleMethod(){
+                let nodes=this.$refs['moduletree'].getCheckedNodes();
+                for(let i=0;i<nodes.length;i++){
+
+                    let node=nodes[i];
+
+                    if(node.parentId!=0){
+                        let n=this.findTreeModuleId(nodes,node.parentId);
+                        if(n==""||n==null){ //没有在选中的找到父级id
+
+                            let n2=this.findTreeModuleId(this.moduleAllDate,node.parentId);
+
+                            while(true){
+                                if(n2!=""&& n2!=null){
+                                    nodes.push(n2);
+                                    if(n2.parentId!=0){
+                                        n2=this.findTreeModuleId(this.moduleAllDate,n2.parentId);
+                                    }
+                                    else{
+                                        break;
+                                    }
+                                }else{
+                                    break;
+                                }
+
+                            }
+                        }
+                    }
+                }
+                let modules=new Array();
+                let roleId=this.setRolesIdActive;
+                for(let i=0;i<nodes.length;i++){
+                    let node=nodes[i];
+                    if(node.id!=null){
+                        let moduleId=node.id;
+                        let uuid = "cms"+this.guid();
+                        let o=new Object();
+                        o.roleId=roleId;
+                        o.moduleId=moduleId;
+                        o.id=uuid;
+                        modules.push(o);
+                    }
+                }
+                axios.post('/roleModule/roleSetModule',modules)
+                    .then((response)=>{
+                        if(response.data.success){
+                            this.$Notice.success({
+                                title: '设置成功',
+                                desc:  ''
+                            });
+
+                            window.top.refereTree.click()
+                        }else{
+                            this.$Notice.error({
+                                title: '设置失败',
+                                desc:  response.data.message
+                            });
+                        }
+                    })
+                    .catch((error)=>{
+
+                        try {
+                            if(error.response.data.success==false){
+                                if(error.response.data.message=="请先登录"){
+                                    window.top.location.href="/";
+                                }
+                                this.$Notice.error({
+                                    title: '设置失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '设置失败',
+                                desc:  ''
+                            });
+                        }
+                        console.log(error)
+                    })
+            },
+            //转树
+            getJsonTree(data,parentId){
+                let itemArr=[];
+                for(let i=0;i<data.length;i++){
+                    let node=data[i];
+                    if(node.parentId==parentId ){
+                        let newNode={
+                            id:node.id,
+                            title:node.name,
+                            parentId:node.parentId,
+                            path:node.path,
+                            weight:node.weight,
+                            icon_class:node.icon_class,
+                            expand:false,
+                            checked:node.checked,
+                            children:this.getJsonTree(data,node.id)
+                        };
+                        itemArr.push(newNode);
+                    }
+                }
+                return itemArr;
+            },
+            //权限确定时使用
+            setpermissionMethod(){
+                let nodes=this.$refs['permissiontree'].getCheckedNodes();
+                let permissions=new Array();
+                let roleId=this.setRolesIdActive;
+                for(let i=0;i<nodes.length;i++){
+                    let node=nodes[i];
+                    if(node.id!=null){
+                        let permissionId=node.id;
+                        let o=new Object();
+                        o.roleId=roleId;
+                        o.permissionId=permissionId;
+                        permissions.push(o);
+                    }
+                }
+                axios.post('/rolePermission/addAll/'+roleId,permissions)
+                    .then((response)=>{
+                     if(response.data.success){
+                         this.$Notice.success({
+                             title: '设置成功',
+                             desc:  ''
+                         });
+                     }else{
+                         this.$Notice.error({
+                             title: '设置失败',
+                             desc:  ''
+                         });
+                     }
+                    })
+                    .catch((error)=>{
+
+                        try {
+                            if(error.response.data.success==false){
+                                if(error.response.data.message=="请先登录"){
+                                    window.top.location.href="/";
+                                }
+                                this.$Notice.error({
+                                    title: '设置失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '设置失败',
+                                desc:  ''
+                            });
+                        }
+                        console.log(error)
+                    })
+            },
+            //条数切换后
+            pgeSizeChange(pageSize){
+                this.rows=pageSize;
+                this.queryRolesPaging();
+            },
+            //页数改变后
+            pageChanage(page){
+                this.page=page;
+                this.queryRolesPaging();
+
+            },
+            expertData(){
+                const form = document.createElement('form')
+                form.action = "/role/expertRoles"
+                form.method = 'GET'
+                form.style.display = 'none'
+                const roleName=document.createElement("input");
+                roleName.name="roleName"
+                roleName.value = this.roleNamequery;
+
+                const page=document.createElement("input");
+                page.name="page"
+                page.value = 0;
+
+                const rows=document.createElement("input");
+                rows.name="rows"
+                rows.value = 0;
+
+                const button = document.createElement('input')
+                button.type = 'submit'
+                form.appendChild(roleName);
+                form.appendChild(page);
+                form.appendChild(rows);
+                form.appendChild(button)
+                document.body.appendChild(form)
+                form.submit()
+                document.body.removeChild(form)
+            },
+            //分页查询角色
+            queryRolesPaging(){
+                this.roleTableLoading=true;
+              axios.get('/role/queryPaging',{
+                  params:{
+                      roleName:this.roleNamequery,
+                      page:this.page,
+                      rows:this.rows
+                  }
+              })
+                  .then((response)=>{
+                      this.rolesData=[];
+                    let roleDate=response.data;
+                    this.total=roleDate.total;
+                    let roles=roleDate.rows;
+                    for (let i=0;i<roles.length;i++){
+                        let role=roles[i];
+                        role.moduleSet="设置";
+                        role.permissionSet='设置';
+                        role.roleSet=['修改','删除'];
+                        this.rolesData.push(role);
+                    }
+                    this.roleTableLoading=false;
+                      window.setTimeout(()=>{
+                          permissionshow();
+                      },100)
+                  })
+                  .catch((error)=>{
+                      try {
+                          if(error.response.data.success==false){
+                              if(error.response.data.message=="请先登录"){
+                                  window.top.location.href="/";
+                              }
+                              this.$Notice.error({
+                                  title: '查询失败',
+                                  desc:  error.response.data.message});
+                          }
+                      }
+                      catch(err) {
+                          this.$Notice.error({
+                              title: '查询失败',
+                              desc:  ''
+                          });
+                      }
+                  })
+            },
+            reloadHTML(){
+                this.$Spin.show();
+                this.$Loading.start();
+                setTimeout(() => {
+                    this.$Spin.hide();
+                    this.$Loading.finish();
+                    window.location.reload();
+                }, 1000);
+            }
+        },
+        mounted(){
+           this.queryRolesPaging();
+        }
+    }
+    var Component = Vue.extend(maindata)
+    new Component().$mount('#app')
+</script>
+</html>

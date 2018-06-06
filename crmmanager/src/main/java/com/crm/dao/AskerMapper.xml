@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crm.dao.AskerMapper">
+
+    <select id="queryAskersAll" resultType="askers">
+        SELECT * FROM askers where AskerId not in(select deleteId from recycling where deleteTable='users');
+    </select>
+    
+    <select id="queryAskerByAskerId" resultType="askers">
+        SELECT AskerName FROM askers WHERE AskerId=#{askerId} and AskerId not in(select deleteId from recycling where deleteTable='users')
+    </select>
+
+    <select id="queryAskerByCheckOrderWeight" resultType="askers">
+        select  * from askers where
+            date_format(CheckInTime,'%Y-%m-%d')= date_format(now(),'%Y-%m-%d')
+            and CheckState='已签到'
+            and ChangeState='是'
+            and AskerId not in(select deleteId from recycling where deleteTable='users')
+            order by Weight desc LIMIT 1;
+    </select>
+
+    <update id="updateAskerChangeState">
+        update askers SET ChangeState=#{changeState} where AskerId=#{askerId}
+    </update>
+
+    <select id="queryAskersPaging" resultType="askers">
+        select SQL_CALC_FOUND_ROWS * from askers
+        <where>
+            <if test="askerName!=null and askerName!=''">
+                and AskerName like "%"#{askerName}"%"
+            </if>
+            <if test="1==1">
+                and AskerId not in(select deleteId from recycling where deleteTable='users')
+            </if>
+        </where>
+        <if test="rows!=0">
+            limit #{offsex},#{rows}
+        </if>
+    </select>
+
+    <select id="queryAskersPagingColumn" resultType="int">
+        SELECT FOUND_ROWS();
+    </select>
+
+    <update id="updateAskerWeightAndContext">
+        update askers set Weight=#{weight},BakContent=#{bakContent} WHERE AskerId=#{askerId}
+    </update>
+
+    <update id="updateAskerField">
+        UPDATE askers set ${fieldName}=#{fieldValue}
+        WHERE AskerId=#{askerId}
+    </update>
+
+    <insert id="addAsker" parameterType="askers">
+        INSERT INTO askers(AskerId, AskerName)
+        VALUES (#{askerId},#{askerName})
+    </insert>
+    
+    <delete id="deleteAskerByid">
+        DELETE FROM askers WHERE AskerId=#{askerId}
+    </delete>
+
+    <select id="queryAskersByCheck" resultType="askers">
+        select * from askers WHERE CheckState='已签到' and date_format(CheckInTime,'%Y-%m-%d')= date_format(now(),'%Y-%m-%d') and AskerId not in(select deleteId from recycling where deleteTable='users');
+    </select>
+
+    <update id="updateAskerIsChange">
+        UPDATE askers set ChangeState='是'
+        WHERE CheckState='已签到'  and date_format(CheckInTime,'%Y-%m-%d')= date_format(now(),'%Y-%m-%d');
+    </update>
+</mapper>

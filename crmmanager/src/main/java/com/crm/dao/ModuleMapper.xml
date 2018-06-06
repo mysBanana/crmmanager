@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crm.dao.ModuleMapper">
+
+    <resultMap id="moduleTreeMap" type="modulesTree">
+        <id property="id" column="Id"></id>
+        <result property="name" column="Name"></result>
+        <result property="parentId" column="ParentId"></result>
+        <result property="path" column="Path"></result>
+        <result property="ops" column="Ops"></result>
+        <result property="int0" column="Int0"></result>
+        <result property="icon_class" column="icon_class"></result>
+        <collection property="children" ofType="modulesTree" column="id" select="getChildren">
+        </collection>
+    </resultMap>
+
+    <resultMap id="modulesTreeCasscadeTreeMap" type="modulesCasscadeTree">
+        <id property="id" column="Id"></id>
+        <result property="name" column="Name"></result>
+        <collection property="children" ofType="modulesCasscadeTree" column="id" select="getChildren2">
+        </collection>
+    </resultMap>
+    
+    <resultMap id="chartTreeMap" type="chartTree">
+        <result property="name" column="Name"></result>
+        <result property="value" column="Id"></result>
+        <result property="link" column="Path"></result>
+        <collection property="children" ofType="chartTree" column="id" select="getChidren3">
+        </collection>
+    </resultMap>
+
+    <resultMap id="modulesCheckedTreeCheMap" type="modulesCheckedTreeChe">
+        <id property="id" column="Id"></id>
+        <result property="name" column="Name"></result>
+        <result property="parentId" column="ParentId"></result>
+        <result property="path" column="Path"></result>
+        <result property="ops" column="Ops"></result>
+        <result property="int0" column="Int0"></result>
+        <result property="icon_class" column="icon_class"></result>
+        <collection property="children" ofType="modulesCheckedTreeChe" column="id" select="getChildrenChe">
+        </collection>
+    </resultMap>
+
+    <select id="getChildren" resultMap="moduleTreeMap">
+        select * from modules where ParentId=#{id}  and Id not in(select deleteId from recycling where deleteTable='modules');
+    </select>
+
+    <select id="getChildren2" resultMap="modulesTreeCasscadeTreeMap">
+        select * from modules where ParentId=#{id} and Id not in(select deleteId from recycling where deleteTable='modules');
+    </select>
+
+    <select id="getChidren3" resultMap="chartTreeMap">
+        select * from modules where ParentId=#{id} and Id not in(select deleteId from recycling where deleteTable='modules');
+    </select>
+
+    <select id="getChildrenChe" resultMap="modulesCheckedTreeCheMap">
+        select * from modules where ParentId=#{id} and Id not in(select deleteId from recycling where deleteTable='modules');
+    </select>
+
+    <select id="queryModuleByRoleNames" resultType="modules">
+        {call role_module_proc(#{roleNames,mode=IN})}
+    </select>
+
+    <select id="queryModuleAll" resultType="modulesChecked">
+      select * from modules where Id not in(select deleteId from recycling where deleteTable='modules');
+    </select>
+
+    <select id="queryModuleAllTreeChe" resultMap="modulesCheckedTreeCheMap">
+        select * from modules where ParentId=0 and Id not in(select deleteId from recycling where deleteTable='modules');
+    </select>
+
+    <select id="queryModuleAllTree"  resultMap="moduleTreeMap">
+        select * from modules WHERE ParentId = 0 and Id not in(select deleteId from recycling where deleteTable='modules');
+    </select>
+
+    <select id="queryModuleAllTreePaging" resultMap="moduleTreeMap">
+        select  * from modules WHERE ParentId = 0 and Id not in(select deleteId from recycling where deleteTable='modules') ORDER BY Weight desc LIMIT #{offsex},#{rows};
+    </select>
+
+    <select id="queryModuleAllTreePagingColumns" resultType="int">
+        select  count(Id) from modules WHERE ParentId = 0 and Id not in(select deleteId from recycling where deleteTable='modules') ORDER BY Weight desc
+    </select>
+
+    <insert id="addModule" parameterType="modules">
+      insert into modules(name,parentId,path,weight,icon_class) VALUES
+          (#{name},#{parentId},#{path},#{weight},#{icon_class});
+    </insert>
+
+
+
+    <select id="getModulesTreeCascade" resultMap="modulesTreeCasscadeTreeMap">
+        select * from modules WHERE ParentId = 0 and Id not in(select deleteId from recycling where deleteTable='modules');
+    </select>
+
+    <update id="updateModule" parameterType="modules">
+      UPDATE modules
+      <set>
+          <if test="name!=null and name!=''">
+              `Name` = #{name},
+          </if>
+          <if test="path!=null and path!=''">
+              Path=#{path},
+          </if>
+          <if test="weight!=-1">
+              Weight=#{weight},
+          </if>
+          <if test="icon_class!=null and icon_class!=''">
+              icon_class=#{icon_class},
+          </if>
+      </set>
+        WHERE Id=#{id}
+    </update>
+
+    <select id="queryModules" resultType="modules">
+        select * from modules WHERE ParentId=#{parentId} and Id not in(select deleteId from recycling where deleteTable='modules');
+    </select>
+
+    <delete id="deleteModules">
+        delete from modules WHERE Id=#{moduleId}
+    </delete>
+
+    <delete id="deleteModuleParentId">
+        delete from modules WHERE ParentId=#{moduleId}
+    </delete>
+
+    <select id="queryModulesByName" resultType="modulesTree">
+        SELECT SQL_CALC_FOUND_ROWS * FROM modules
+        <where>
+            <if test="moduleName!=null and moduleName!=''">
+                Name like "%"#{moduleName}"%"
+            </if>
+            <if test="1==1">
+                and Id not in(select deleteId from recycling where deleteTable='modules')
+            </if>
+        </where>
+        order by Weight desc
+        limit #{offsex},#{rows}
+    </select>
+
+    <select id="queryModuleCount" resultType="int">
+        SELECT FOUND_ROWS();
+    </select>
+
+    <select id="queryModulesByParentId" resultType="ModulesTree">
+        select * from modules WHERE ParentId=#{parentId} and Id not in(select deleteId from recycling where deleteTable='modules') ORDER BY Weight desc;
+    </select>
+
+
+    <select id="queryModulesByModuleAll" resultType="modules">
+        select * from modules
+        <where>
+            <if test="moduleName!=null and moduleName!=''">
+                Name like "%"#{moduleName}"%"
+            </if>
+            <if test="1==1">
+                and Id not in(select deleteId from recycling where deleteTable='modules')
+            </if>
+        </where>
+    </select>
+
+    <select id="getModuleByid" resultType="modules">
+        SELECT * FROM modules WHERE Id=#{id};
+    </select>
+
+    <select id="getChartTreeRouteByTopId" resultMap="chartTreeMap">
+        SELECT * FROM modules WHERE Id=#{topId} and Id not in(select deleteId from recycling where deleteTable='modules');
+    </select>
+</mapper>

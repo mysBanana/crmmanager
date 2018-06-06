@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crm.dao.NetfollowsMapper">
+
+    <insert id="addNetfollows" parameterType="netfollows">
+        INSERT INTO netfollows(StudentId, StudentName, FollowTime, NextFollowTime, Content, UserId, FollowType, FollowState)
+        VALUES (#{studentId},#{studentName},#{followTime},#{nextFollowTime},#{content},#{userId},#{followType},#{followState})
+    </insert>
+
+    <select id="getNetfollows" resultType="netfollows">
+        SELECT SQL_CALC_FOUND_ROWS * FROM netfollows where StudentId=#{id}
+        LIMIT #{offsex},#{rows}
+    </select>
+
+    <select id="getNetfollowsCount" resultType="int">
+        SELECT FOUND_ROWS();
+    </select>
+
+    <select id="getNetfollowsByNetfollowsQuery" parameterType="netfollowsQuery" resultType="netfollows">
+      SELECT SQL_CALC_FOUND_ROWS a.*,b.LoginName as 'userName' FROM netfollows a left join users b on a.UserId=b.Id
+        <where>
+            <if test="studentName!=null and studentName!=''">
+                and StudentName like "%"#{studentName}"%"
+            </if>
+            <if test="userName!=null and userName!=''">
+                and b.LoginName like "%"#{userName}"%"
+            </if>
+            <if test="followTimeStart!=null">
+                and FollowTime >= #{followTimeStart}
+            </if>
+            <if test="followTimeEnd!=null">
+                and FollowTime &lt;=#{followTimeEnd}
+            </if>
+            <if test="content!=null and content!=''">
+                and Content like "%"#{content}"%"
+            </if>
+            <if test="followType!=null and followType!=''">
+                and FollowType like "%"#{followType}"%"
+            </if>
+            <if test="askerId!=null and askerId!=''">
+                and a.StudentId in(select Id from students where AskerId=#{askerId})
+            </if>
+        </where>
+        <if test="rows!=0">
+            limit #{offsex},#{rows}
+        </if>
+    </select>
+
+</mapper>

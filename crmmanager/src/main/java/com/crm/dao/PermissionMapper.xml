@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crm.dao.PermissionMapper">
+
+    <resultMap id="permissionMap" type="node">
+        <result property="title" column="permissionModule"/>
+        <collection property="children" ofType="node">
+            <result property="id" column="permissionId"/>
+            <result property="title" column="permissionName"/>
+        </collection>
+    </resultMap>
+
+
+
+    <insert id="addPermission" parameterType="list">
+        INSERT IGNORE  into permission(permissionId, permissionValue, permissionModule, permissionName) VALUES
+          <foreach collection="list" separator="," item="item">
+              (#{item.permissionId},#{item.permissionValue},#{item.permissionModule},#{item.permissionName})
+          </foreach>
+    </insert>
+
+    <select id="queryPermissionByNoRoleId" resultType="permission">
+        {call noroleid_permission_proc(#{roleId,mode=IN})}
+    </select>
+
+    <select id="queryPermissionByRoleId" resultType="permission">
+        {call roleId_permission_proc(#{roleId,mode=IN})}
+    </select>
+
+    <select id="queryPermissionAll" resultMap="permissionMap">
+        SELECT * FROM permission;
+    </select>
+
+    <select id="queryPermissionByRoleName" resultType="permission">
+        {call roleName_permission_proc(#{roleNames,mode=IN})}
+    </select>
+
+    <select id="queryPermissionPaging" resultMap="permissionMap" parameterType="permissionQuery">
+        SELECT  * FROM permission
+        <where>
+            <if test="permissionName!=null and permissionName!=''">
+                PermissionName  = #{permissionName}
+            </if>
+        </where>
+        LIMIT #{offsex},#{rows}
+    </select>
+
+    <select id="queryPermissionPagingCount" resultType="int">
+        select count(permissionModule) from
+            (select permissionModule from permission
+                <where>
+                    <if test="permssionName!=null and permssionName!=''">
+                        PermssionName=#{permssionName}
+                    </if>
+                </where>
+            GROUP BY permissionModule) a
+    </select>
+
+    <select id="queryPermissionByPermissionName" resultMap="permissionMap">
+        select SQL_CALC_FOUND_ROWS * from permission
+        <where>
+            <if test="permissionName!=null and permissionName!=''">
+                PermissionName like "%"#{permissionName}"%"
+            </if>
+        </where>
+
+    </select>
+
+    <select id="queryPermissionByPermissionNameCount" resultType="int">
+        select found_rows();
+    </select>
+
+    <select id="queryGroupByPrmissionAndModuleNameParentPaging" resultType="permissionTree">
+        select SQL_CALC_FOUND_ROWS permissionModule from permission
+       <where>
+           <if test="permissionName!=null and permissionName!=''">
+               permissionName like "%"#{permissionName}"%"
+           </if>
+       </where>
+        group by permissionModule limit #{offsex},#{rows};
+    </select>
+
+    <select id="queryGroupByPrmissionAndModuleNameChidrenPaging" resultType="permission">
+        select * from permission
+        <where>
+            <if test="permissionName!=null and permissionName!=''">
+               and permissionName like "%"#{permissionName}"%"
+            </if>
+            <if test="moduleName!=null and moduleName!=''">
+               and permissionModule=#{moduleName};
+            </if>
+        </where>
+
+    </select>
+
+    <select id="queryPermissionByName" resultType="permission">
+        select *
+        from permission
+        <where>
+            <if test="permissionName!=null and permissionName!=''">
+                permissionName like "%"#{permissionName}"%"
+            </if>
+        </where>
+    </select>
+</mapper>

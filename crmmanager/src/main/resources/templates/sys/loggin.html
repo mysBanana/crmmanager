@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="/css/buttons.css">
+    <link rel="stylesheet" href="/js/iview/dist/styles/iview.css">
+    <script src="/js/vue.js"></script>
+    <script src="/js/iview/dist/iview.js"></script>
+    <script src="/js/axios.js"></script>
+    <style>
+        html body{
+            width: 100%;
+            height: auto;
+            background: rgb(2,0,36);
+            background: linear-gradient(90deg, rgba(2,0,36,1) 0%, rgba(235,170,217,0.9699230033810399) 0%, rgba(0,212,255,1) 100%);
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div>
+        <row  type="flex" justify="space-between" align="middle" permissionerequier="loggin:queryLogginPermissionPaging">
+            <i-col :span="3">
+                <span>用户名:</span>
+                <i-input v-model="logginQuery.name"></i-input>
+            </i-col>
+            <i-col :span="3">
+                <span>内容:</span>
+                <i-input v-model="logginQuery.comment"></i-input>
+            </i-col>
+            <i-col :span="3">
+                <span>是否成功:</span>
+                <radio-group v-model="logginQuery.isSuccess">
+                    <radio label="是">
+                        <span>是</span>
+                    </radio>
+                    <radio label="否">
+                        <span>否</span>
+                    </radio>
+                </radio-group>
+            </i-col>
+            <i-col :span="6">
+                <span>创建起止时间:</span>
+                <date-picker v-model="logginQuery.createTimeStartAndEnd" split-panels type="datetimerange" format="yyyy-MM-dd HH:mm"
+                             placeholder="创建时间的起止"></date-picker>
+            </i-col>
+            <i-col :span="3">
+                <i-button @click="logginSearch" type="primary" shape="circle" icon="ios-search">搜索</i-button>
+            </i-col>
+
+        </row>
+        <row type="flex" justify="center" align="middle">
+            <i-col :span="5" permissionerequier="loggin:expertLoggin">
+                <button @click="expertData"  class="button button-small  button-3d button-royal button-rounded">
+                    <Icon type="android-download"></Icon>
+                    导出数据为表格
+                </button>
+            </i-col>
+            <i-col :span="1">
+                <span>&nbsp;</span>
+                <i-button icon="loop" type="info" @click="reloadHTML">刷新</i-button>
+            </i-col>
+        </row>
+    </div>
+    <div style="margin-top: 10px;">
+        <i-table  permissionerequier="loggin:queryLogginPermissionPaging"
+                  stripe  border
+                  :loading="logginLoading"
+                  :columns="logginColumn"
+                  :data="logginData"></i-table>
+    </div>
+    <div style="display: flex;justify-content: center;align-items: center;margin-top: 10px;">
+        <page @on-page-size-change="pgeSizeChange" @on-change="pageChanage" :total="logginQuery.total"   :current="logginQuery.page"
+              :page-size="logginQuery.rows" show-elevator show-sizer></page>
+    </div>
+    <div></div>
+</div>
+</body>
+<script>
+    let maindata={
+        data(){
+            return{
+                logginLoading:true,
+                logginColumn:[
+                    {
+                        title:'用户名称',
+                        key:'string1'
+                    },
+                    {
+                        title:'权限内容',
+                        key:'comment'
+                    },
+                    {
+                        title:'操作时间',
+                        key:'createTime'
+                    },
+                    {
+                        title:"是否成功",
+                        key:'isSuccess'
+                    },
+                    {
+                        title:'备注',
+                        key:'string0'
+                    }
+                ],
+                logginData:[],
+                logginQuery:{
+                    name:'',
+                    comment:'',
+                    isSuccess:'',
+                    createTimeStartAndEnd:[],
+                    createTimeStart:null,
+                    createTimeEnd:null,
+                    page:1,
+                    rows:10,
+                    total:0
+                }
+            }
+        },
+        watch:{
+            'logginQuery.createTimeStartAndEnd':{
+                handler: function (val, oldVal) {
+                    this.logginQuery.createTimeStart=this.date_string(val[0])
+                    this.logginQuery.createTimeEnd=this.date_string(val[1])
+                },
+                deep: true
+            },
+        },
+        methods:{
+            expertData(){
+                const form = document.createElement('form')
+                form.action = "/loggin/expertLoggin"
+                form.method = 'GET'
+                form.style.display = 'none'
+
+                const name=document.createElement("input");
+                name.name="name"
+                name.value = this.logginQuery.name;
+
+                const comment=document.createElement("input");
+                comment.name="comment"
+                comment.value = this.logginQuery.comment;
+
+                const isSuccess=document.createElement("input");
+                isSuccess.name="isSuccess"
+                isSuccess.value = this.logginQuery.isSuccess;
+
+                const createTimeStart=document.createElement("input");
+                createTimeStart.name="createTimeStart"
+                createTimeStart.value = this.logginQuery.createTimeStart;
+
+                const createTimeEnd=document.createElement("input");
+                createTimeEnd.name="createTimeEnd"
+                createTimeEnd.value = this.logginQuery.createTimeEnd;
+
+                const page=document.createElement("input");
+                page.name="page"
+                page.value = 0;
+
+                const rows=document.createElement("input");
+                rows.name="rows"
+                rows.value = 0;
+
+                const button = document.createElement('input')
+                button.type = 'submit'
+                form.appendChild(name);
+                form.appendChild(comment);
+                form.appendChild(isSuccess);
+                form.appendChild(createTimeStart);
+                form.appendChild(createTimeEnd);
+                form.appendChild(page);
+                form.appendChild(rows);
+                form.appendChild(button)
+                document.body.appendChild(form)
+                form.submit()
+                document.body.removeChild(form)
+            },
+            logginSearch(){
+                this.logginQuery.page=1;
+                this.queryLogin();
+            },
+            pageChanage(page){
+                this.logginQuery.page=page;
+                this.queryLogin();
+            },
+            pgeSizeChange(size){
+                this.logginQuery.rows=size;
+                this.queryLogin();
+            },
+            queryLogin(){
+                this.logginLoading=true
+                this.logginData=[]
+                axios.get('/loggin/queryLogginPermissionPaging',{
+                    params:this.logginQuery
+                })
+                    .then((response)=>{
+                        this.logginQuery.total=response.data.total;
+                        this.logginData=response.data.rows;
+                        this.logginLoading=false
+                    })
+                    .catch((error)=>{
+                        try {
+                            if(error.response.data.success==false){
+                                if(error.response.data.message=="请先登录"){
+                                    window.top.location.href="/";
+                                }
+                                this.$Notice.error({
+                                    title: '查询失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '查询失败',
+                                desc:  ''
+                            });
+                        }
+                    })
+            },
+            //格式化时间
+            date_string(date) {
+                if (typeof(date) != "object" || date=="" ||date==null) {
+                    return null;
+                }
+                let year = date.getFullYear();
+                let month = (date.getMonth() + 1).toString();
+                let day = (date.getDate()).toString();
+                let hour = date.getHours();
+                let min = date.getMinutes();
+                let secod = date.getSeconds();
+                if (month.length == 1) {
+                    month = "0" + month;
+                }
+                if (day.length == 1) {
+                    day = "0" + day;
+                }
+                var dateTime = year + "-" + month + "-" + day + " " + hour + ":" + min + ":" + secod
+                return dateTime;
+            },
+            //页面刷新
+            reloadHTML() {
+                //window.location.reload();
+                this.$Spin.show();
+                this.$Loading.start();
+                setTimeout(() => {
+                    this.$Spin.hide();
+                    this.$Loading.finish();
+                    window.location.reload();
+                }, 1000);
+            },
+        },
+        mounted(){
+            this.queryLogin();
+        }
+    }
+
+    var Component = Vue.extend(maindata)
+    new Component().$mount('#app')
+</script>
+</html>

@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="/css/buttons.css">
+    <link rel="stylesheet" href="/js/iview/dist/styles/iview.css">
+    <script src="/js/vue.js"></script>
+    <script src="/js/iview/dist/iview.js"></script>
+    <script src="/js/axios.js"></script>
+    <script src="/js/jquery-3.3.1.js"></script>
+    <script src="/js/permissionShow.js"></script>
+    <style>
+        html body{
+            width: 100%;
+            height: auto;
+            background: rgb(2,0,36);
+            background: linear-gradient(90deg, rgba(2,0,36,1) 0%, rgba(235,170,217,0.9699230033810399) 0%, rgba(0,212,255,1) 100%);
+        }
+
+        .conditionrow > .ivu-col {
+            margin-left: 10px;
+        }
+
+        #app {
+            overflow: hidden;
+        }
+        .user-createtime,.last-time{
+            font-size: 12px;
+        }
+        #flex-setRoles{
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div>
+        <row class="conditionrow" permissionerequier="user:query">
+            <i-col :span="3">
+                <span>用户名:</span>
+                <i-input v-model="userName" placeholder="请输入用户名" clearable icon="person"></i-input>
+            </i-col>
+            <i-col :span="3">
+                <span>用户邮箱:</span>
+                <i-input v-model="protectEMail" placeholder="请输入用户邮箱" clearable icon="email"></i-input>
+            </i-col>
+            <i-col :span="3">
+                <span>用户手机号:</span>
+                <i-input v-model="protectMTel" placeholder="请输入用户手机号" clearable icon="ios-telephone-outline"></i-input>
+            </i-col>
+            <i-col :span="4">
+                <span>用户创建起止时间:</span>
+                <date-picker v-model="CreateTimeBeginAndEnd" split-panels type="datetimerange" format="yyyy-MM-dd HH:mm"
+                             placeholder="创建用户时间的起止"></date-picker>
+            </i-col>
+            <i-col :span="3">
+                <span>是否锁定:</span>
+                <radio-group v-model="isLockout" type="button">
+                    <radio label="否">
+                        <Icon type="unlocked"></Icon>
+                        <span>未锁</span></radio>
+                    <radio label="是">
+                        <Icon type="locked"></Icon>
+                        <span>锁</span></radio>
+                </radio-group>
+            </i-col>
+            <i-col :span="3">
+                <span>排序:</span>
+                <i-select v-model="order">
+                    <i-option value="CreateTime">创建时间</i-option>
+                    <i-option value="LastLoginTime">最后登录时间</i-option>
+                </i-select>
+            </i-col>
+            <i-col :span="2">
+                <div>
+                    <span>&nbsp;</span>
+                    <i-button type="success" long @click="searchUser">搜索</i-button>
+                </div>
+            </i-col>
+            <i-col :span="1">
+                <span>&nbsp;</span>
+                <i-button icon="loop" type="info" @click="reloadHTML">刷新</i-button>
+            </i-col>
+        </row>
+    </div>
+    <div style="margin-top: 10px;display: flex;justify-content:space-around">
+        <button permissionerequier="user:add"  class="button button-small button-pill  button-3d button-primary button-rounded" @click="addModalShow">
+        <Icon type="plus-round"></Icon>
+        新增用户
+        </button>
+        <button  permissionerequier="user:expertUser"  class="button button-small  button-3d button-royal button-rounded button-pill " @click="exportData">
+            <Icon type="android-download"></Icon>
+            导出数据为表格
+        </button>
+        <div>
+            <button permissionerequier="user:getTemplate" @click="templateShow"  class="button button-small  button-3d button-royal button-rounded button-pill ">
+                下载模板
+            </button>
+        </div>
+        <div permissionerequier="user:importUser">
+            <upload :show-upload-list="false" action="/user/importUser" :on-success="importsuc" :on-error="importerr">
+                <button  class="button button-small button-jumbo  button-3d button-pill">
+                    <Icon type="android-download"></Icon>
+                    导入用户
+                </button>
+            </upload>
+        </div>
+        <modal v-model="addModal"  title="新增用户"  :mask-closable="false">
+            <div>
+                <i-form style="" :label-width="100" :model="addUserForm"  label-position="right"  ref="addUserForm" :rules="validatorRules" >
+                    <form-item  label="用户名"  prop="loginName">
+                        <i-input type="text" v-model="addUserForm.loginName" placeholder="请输入用户名">
+                        </i-input>
+                    </form-item >
+                    <form-item  label="密码"  prop="password">
+                        <i-input type="password" v-model="addUserForm.password" placeholder="请输入密码" >
+                        </i-input>
+                    </form-item >
+                    <form-item  label="确认密码"  prop="passwordCheck">
+                        <i-input type="password" v-model="addUserForm.passwordCheck" placeholder="请在此输入密码">
+                        </i-input>
+                    </form-item >
+                    <form-item  label="邮箱"  prop="protectEMail">
+                        <i-input type="text" v-model="addUserForm.protectEMail" placeholder="请输入邮箱">
+                        </i-input>
+                    </form-item >
+                    <form-item  label="手机号"  prop="protectMTel">
+                        <i-input type="text" v-model="addUserForm.protectMTel" placeholder="请输入手机号">
+                        </i-input>
+                    </form-item >
+                </i-form>
+            </div>
+            <div slot="footer">
+                <button class="button button-raised button-primary button-pill" @click="addUser">新增用户</button>
+                <button class="button button-raised button-royal button-pill" @click="addModalHide">取消</button>
+            </div>
+        </modal>
+        <modal v-model="updateModal" title="修改用户"  @on-ok="updateUsertj">
+            <div>
+                <i-form style="" :label-width="100" :model="updateUser"  label-position="right"  ref="updateUser" :rules="updateUserRules" >
+                    <form-item  label="用户名"  prop="name">
+                        <i-input type="text" disabled v-model="updateUser.name"  placeholder="请输入用户名">
+                        </i-input>
+                    </form-item >
+                    <form-item  label="手机号"  prop="mTel">
+                        <i-input type="text"  v-model="updateUser.mTel"  placeholder="请输入手机号">
+                        </i-input>
+                    </form-item >
+                    <form-item  label="邮箱"  prop="email">
+                        <i-input type="text"  v-model="updateUser.email"  placeholder="请输入邮箱">
+                        </i-input>
+                    </form-item >
+                </i-form>
+            </div>
+        </modal>
+        <modal v-model="userSetRolesModal" title="设置角色">
+            <div id="flex-setRoles">
+                <div>
+                    <i-table :loading="userSetRoleLoading" @on-selection-change="rolesByNounMethod" stripe  :columns="userSetRolesByUnTable" :data="userRolesAndNoUserRoles.noUserRoles"></i-table>
+                </div>
+                <div>
+                    <button @click="userSetRolePut(true)" class="button button-primary button-box button-giant button-longshadow-right">
+                        <Icon type="arrow-right-a" size="30" ></Icon>
+                    </button>
+
+                    <button @click="userSetRolePut(false)" style="margin-top: 30px;" class="button button-action button-box button-giant button-longshadow-left">
+                        <Icon type="arrow-left-a" size="30"  ></Icon>
+                    </button>
+                </div>
+                <div>
+                    <i-table :loading="userSetRoleLoading" @on-selection-change="rolesByunMethod" stripe :columns="userSetRolesByUnTable" :data="userRolesAndNoUserRoles.userRoles"></i-table>
+                </div>
+            </div>
+        </modal>
+        <modal v-model="showTemplateMadal" title="选择下载列">
+            <checkbox-group v-model="TemplateColumnCheck">
+                <checkbox :disabled="o.noNull" :label="o.name" v-for="o in showTemplateColumn">
+                    <span>{{o.name}}</span>
+                </checkbox>
+            </checkbox-group>
+            <div slot="footer">
+                <i-button type="success" size="large" long  @click="downTemplate">下载</i-button>
+            </div>
+        </modal>
+    </div>
+    <div style="margin-top: 20px;">
+
+        <i-table :loading="loading" permissionerequier="user:query"  :height="tableHeight"  stripe ref="usertable"   :columns="tableTitle" :data="users"></i-table>
+    </div>
+    <div style="margin-top: 50px;display: flex;justify-content: center;">
+        <page :total="total" @on-change="changePage" @on-page-size-change="changeSize" :current="current"
+              :page-size="pagesize" show-elevator show-sizer></page>
+    </div>
+</div>
+</body>
+<script>
+    let maindata={
+
+        data() {
+            const validatePass = (rule, value, callback) => {
+                if (value === '') {
+                    callback(new Error('请输入密码!'));
+                } else {
+                    if (this.addUserForm.passwordCheck !== '') {
+                        // 对第二个密码框单独验证
+                        this.$refs.addUserForm.validateField('passwordCheck');
+                    }
+                    callback();
+                }
+            };
+            const validatePassCheck = (rule, value, callback) => {
+                if (value === '') {
+                    callback(new Error('请重新输入面密码!'));
+                } else if (value !== this.addUserForm.password) {
+                    callback(new Error('密码与上次不一致!'));
+                } else {
+                    callback();
+                }
+            };
+
+            const validateName = (rule, value, callback) => {
+                if (!value) {
+                    return callback(new Error('用户名不能为空'));
+                }
+                axios.get('/user/checkUserName',{
+                    params:{
+                        name:value
+                    }
+                })
+                    .then((response)=>{
+                        if(response.data==1){
+                            callback(new Error('用户名已存在'));
+                        }else{
+                            callback();
+                        }
+                    })
+                    .catch((error)=>{
+                        try {
+                            if(error.response.data.success==false){
+                                console.log(error.response.data.message)
+                                if(error.response.data.message=="请先登录"){
+                                    //  window.top.location.href="/";
+                                }
+                                this.$Notice.error({
+                                    title: '查询失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '查询失败',
+                                desc:  ''
+                            });
+                        }
+                    })
+
+            };
+        return{
+            TemplateColumnCheck:[],
+            showTemplateColumn:[],
+            showTemplateMadal:false,
+            userSetRoleLoading:true,
+            userTableIdCheck:{},//点击角色时选中的用户id
+            roleByUnDateCheck:[
+
+            ],
+            roleByNoUnDateCheck:[
+
+                ],
+            userSetRolesByUnTable:[
+                {
+                    type: 'selection',
+                    width: 60,
+                    align: 'center'
+                },
+                {
+                    title:'角色名',
+                    key:'name'
+                },
+            ],
+            userRolesAndNoUserRoles:{
+                userRoles:[
+
+                ],
+                noUserRoles:[
+
+                ]
+            },
+            userSetRolesModal:false,
+            loading:true,
+            validatorRules:{
+                loginName:[
+                    {validator: validateName,required:true, trigger: 'blur'},
+                    {max:10,message:'长度不能超过十位',trigger:'blur'}
+                    ],
+                password: [
+                    { validator: validatePass, required:true,message:"密码不能为空!",trigger: 'blur' }
+                ],
+                passwordCheck: [
+                    { validator: validatePassCheck,required:true,message:"确认密码不能为空!", trigger: 'blur' }
+                ],
+                protectEMail:{required:true,message:"请输入邮箱!"},
+                protectMTel:{required:true,message:"请输入手机号!"}
+            },
+            addUserForm:{
+                loginName:'',
+                password:'',
+                passwordCheck:'',
+                protectEMail:'',
+                protectMTel:''
+            },
+            addModal:false,
+            tableHeight:1000,
+            total: 0, //总条数
+            current: 1, // 当前第几页
+            pagesize: 10, //当前页长度
+            userName: null,
+            CreateTimeBeginAndEnd: ['', ''],//用户创建开始时间
+            isLockout: null,// 是否锁定
+            order: null,//排序字段
+            protectEMail: null,//邮箱
+            protectMTel: null,//手机号
+            updateModal:false,
+            updateUser:{
+                mTel:'',
+                email:'',
+                id:'',
+                name:'',
+            },
+            updateUserRules:{
+                mTel:{mTel:true,message:"手机号不能为空!"},
+                email:{mTel:true,message:"邮箱不能为空!"},
+                },
+            tableTitle: [
+                {
+                    title: '用户名',
+                    key: 'loginName'
+                },
+                {
+                    title: '邮箱',
+                    key: 'protectEMail'
+                },
+                {
+                    title: '手机号',
+                    key: 'protectMTel'
+                },
+                {
+                    title: '是否锁定',
+                    key: 'isLockout'
+                },
+                {
+                    title: '创建时间',
+                    key: 'createTime',
+                    className:'user-createtime'
+                },
+                {
+                    title: '最后登录时间',
+                    key: 'lastLoginTime',
+                    className:'last-time'
+                },
+                {
+                    title: '角色',
+                    key: 'roleSet',
+                    render: (h, params) => {
+                        return h('div', [
+                            h('i-button', {
+                                props: {
+                                    long: true,
+                                    type: 'text',
+
+                                },
+                                attrs:{
+
+                                    permissionerequier:'role:queryUnAndNoqueryUn'
+                                },
+                                on:{
+                                    click:()=>{
+                                        this.userTableIdCheck=params.row;
+                                        this.userSetRolesModal=true;
+                                        this.userSetRoleTableReset(params.row.loginName)
+
+                                    }
+                                }
+                            }, params.row.roleSet)
+                        ])
+                    }
+                },
+                {
+                    title: '操作',
+                    key: 'userSet',
+                    render: (h, params) => {
+                        return h('div', [
+                            h('i-button', {
+                                props: {
+                                    type: 'text'
+                                },
+                                attrs:{
+                                    permissionerequier:'user:updateTelEmail'
+                                },
+                                on:{
+                                    click:()=>{
+                                        this.updateUser.id=params.row.id;
+                                        this.updateUser.mTel=params.row.protectMTel
+                                        this.updateUser.email=params.row.protectEMail;
+                                        this.updateUser.name=params.row.loginName;
+                                        this.updateModal=true;
+                                    }
+                                }
+                            }, params.row.userSet[0]),
+                            h('i-button', {
+                                props: {
+                                    type: 'text'
+                                },
+                                attrs:{
+                                    permissionerequier:'user:delete'
+                                },
+                                on:{
+                                    click:()=>{
+                                        this.$Modal.confirm({
+                                            onOk:()=>{
+                                                let id=params.row.id;
+                                                axios.delete('/user/delete/'+id)
+                                                    .then((response)=>{
+                                                        if(response.data.success){
+                                                            this.$Notice.success({
+                                                                title: '删除成功',
+                                                                desc:  ''
+                                                            });
+                                                            this.queryUserPaging();
+                                                        }else{
+
+
+                                                        }
+                                                    })
+                                                    .catch((error)=>{
+                                                        try {
+                                                            if(error.response.data.success==false){
+                                                                if(error.response.data.message=="请先登录"){
+                                                                    window.top.location.href="/";
+                                                                }
+                                                                this.$Notice.error({
+                                                                    title: '删除失败',
+                                                                    desc:  error.response.data.message
+                                                                });
+                                                            }
+                                                        }
+                                                        catch(err) {
+                                                            this.$Notice.error({
+                                                                title: '删除失败',
+                                                                desc:  ''
+                                                            });
+                                                        }
+                                                    })
+                                            },
+                                            render: (h) => {
+                                                return h('h1', {
+                                                    style:{
+                                                        textAlign:'center'
+                                                    }
+                                                },'!是否要删除用户')
+                                            }
+                                        })
+
+
+
+
+                                    }
+                                }
+                            }, params.row.userSet[1]),
+                            h('i-button', {
+                                props: {
+                                    type: 'text'
+                                },
+                                attrs:{
+                                    permissionerequier:'user:updateField'
+                                },
+                                on:{
+                                    click:()=>{
+                                        let id=params.row.id;
+                                        let fieldName="Password";
+                                        let fieldValue="ysd123";
+                                        this.updateUserField(fieldName,fieldValue,id);
+                                    }
+                                }
+                            }, params.row.userSet[2])
+                        ])
+                    }
+                },
+                {
+                    title: '锁定/解锁',
+                    key: 'userLock',
+                    render: (h, params) => {
+                        let islock = params.row.isLockout == "是" ? true : false;
+                        return h('i-switch', {
+                            attrs: {
+                                value: islock,
+                                permissionerequier:'user:updateField'
+
+                            },
+                            on:{
+                                'on-change':(flag)=>{
+                                    let id=params.row.id;
+                                    let fieldName="IsLockout";
+                                    let fieldValue=flag?"是":"否";
+                                    let res=this.updateUserField(fieldName,fieldValue,id);
+
+                                    if(!res){
+                                    this.islock=!flag;
+                                    }
+                                }
+                            }
+                        }, [
+                            h('Icon', {
+                                slot: 'open',
+                                attrs: {
+                                    type: params.row.userLock[1],
+                                    size: '20'
+
+                                }
+
+                            }, "开"),
+                            h('Icon', {
+                                slot: 'close',
+                                attrs: {
+                                    type: params.row.userLock[0],
+                                    size: '20'
+                                }
+                            }, "关")
+                        ])
+                    }
+                }
+            ],//表格标题
+            users: [], //用户数组
+        }},
+        methods: {
+            //下载模板
+            downTemplate(){
+                if(this.TemplateColumnCheck.length==0||this.TemplateColumnCheck==null){
+                    this.$Message.error("未选择需要导入的列");
+                    return
+                }
+                const form = document.createElement('form')
+                form.action = "/user/expertTemplate"
+                form.method = 'GET'
+                const names=document.createElement("input");
+                names.name="names"
+                names.value = this.TemplateColumnCheck;
+                form.style.display = 'none'
+                form.appendChild(names);
+                document.body.appendChild(form)
+                form.submit()
+                document.body.removeChild(form)
+                this.showTemplateMadal=false;
+            },
+            //打开模板模态框
+            templateShow(){
+                axios.get('/user/getTemplate')
+                    .then((response)=>{
+                        this.showTemplateColumn=response.data;
+                        this.TemplateColumnCheck=response.data.filter(row=>{
+                            return row.noNull
+                        })
+                        this.TemplateColumnCheck=this.TemplateColumnCheck.map(row=>{
+                            return row.name;
+                        })
+                        console.log(this.TemplateColumnCheck)
+                        this.showTemplateMadal=true;
+                    })
+                    .catch((error)=>{
+                        try {
+                            if(error.response.data.success==false){
+                                console.log(error.response.data.message)
+                                if(error.response.data.message=="请先登录"){
+                                    //  window.top.location.href="/";
+                                }
+                                this.$Notice.error({
+                                    title: '查询失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '查询失败',
+                                desc:  ''
+                            });
+                        }
+                    })
+            },
+            importsuc(response, file, fileList){
+                if(response.success){
+                    this.$Message.success("成功");
+                }else{
+                    this.$Message.error(response.message);
+                }
+
+            },
+            importerr(error, file, fileList){
+                this.$Message.error(error.message);
+            },
+            searchUser(){
+                this.current=1;
+                this.queryUserPaging();
+            },
+            userSetRoleTableReset(userName){
+                this.userSetRoleLoading=true;
+                this.userRolesAndNoUserRoles.userRoles=[];
+                this.userRolesAndNoUserRoles.noUserRoles=[];
+                axios.get("/role/queryUnAndNoqueryUn",{
+                    params:{
+                        un:userName
+                    }
+                })
+                    .then((response)=>{
+                        let resultData=response.data;
+                        if(resultData.success){
+                            let rolesDate=resultData.message;
+                            this.userRolesAndNoUserRoles.userRoles=rolesDate.beLogedRoles;
+                            this.userRolesAndNoUserRoles.noUserRoles=rolesDate.noBeLogedRoles;
+                            this.userSetRoleLoading=false;
+                        }else{
+                            this.$Notice.error({
+                                title: '查询角色失败',
+                                desc:  ''
+                            });
+                        }
+                    })
+                    .catch((error)=>{
+                        try {
+                            if(error.response.data.success==false){
+                                console.log(error.response.data.message)
+                                if(error.response.data.message=="请先登录"){
+                                  //  window.top.location.href="/";
+                                }
+                                this.$Notice.error({
+                                    title: '查询失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '查询失败',
+                                desc:  ''
+                            });
+                        }
+                    })
+            },
+            userSetRolePut(flag){
+                //roleByNoUnDateCheck  不在角色表格中 选中的行
+                //roleByUnDateCheck     在角色表格中 选中的行
+                //userTableIdCheck 选中用户表格的值
+                let params=new URLSearchParams();
+                let roles=this.roleByNoUnDateCheck;
+                if(flag){
+                    params.append("roles",JSON.stringify(this.roleByNoUnDateCheck));
+                }else{
+                    roles=this.roleByUnDateCheck;
+                    params.append("roles",JSON.stringify(this.roleByUnDateCheck));
+                }
+                if(roles.length==0){
+                    this.$Notice.error({
+                        title: '请选择',
+                        desc:  ''
+                    });
+                    return;
+                }
+                params.append("flag",flag)
+                axios.post('/user/userSetRole/'+this.userTableIdCheck.id,params)
+                    .then((response)=>{
+                        if(response.data.success){
+                            this.$Notice.success({
+                                title: '设置成功',
+                                desc:  ''
+                            });
+                            this.userSetRoleTableReset(this.userTableIdCheck.loginName);
+                            window.top.refereTree.click()
+                        }else {
+                            this.$Notice.error({
+                                title: '设置失败',
+                                desc:  ''
+                            });
+                        }
+                    })
+                    .catch((error)=>{
+                        try {
+                            if(error.response.data.success==false){
+                                if(error.response.data.message=="请先登录"){
+                                    window.top.location.href="/";
+                                }
+                                this.$Notice.error({
+                                    title: '设置失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '设置失败',
+                                desc:  ''
+                            });
+                        }
+                    })
+
+            },
+            //用户不属于角色的表格中点击事件
+            rolesByNounMethod(selection){
+                this.roleByNoUnDateCheck=selection;
+            },
+            //用户属于角色的表格中点击事件
+            rolesByunMethod(selection){
+                this.roleByUnDateCheck=selection;
+            },
+            //修改用户某一项的值
+            updateUserField(fieldName,fieldValue,id){
+                let params=new URLSearchParams();
+                params.append("fieldName",fieldName);
+                params.append("fieldValue",fieldValue);
+                axios.put('/user/updateUserField/'+id,params)
+                    .then((response)=>{
+                        if(response.data.success){
+                            this.queryUserPaging();
+                            this.$Notice.success({
+                                title: '修改成功',
+                                desc:  ''
+                            });
+                            return true;
+                        }else {
+                            this.$Notice.error({
+                                title: '修改失败',
+                                desc:  ''
+                            });
+                            return false;
+                        }
+                    })
+                    .catch((error)=>{
+                        try {
+                            if(error.response.data.success==false){
+                                if(error.response.data.message=="请先登录"){
+                                    window.top.location.href="/";
+                                }
+                                this.$Notice.error({
+                                    title: '修改失败',
+                                    desc:  error.response.data.message
+                                });
+                                return 'a';
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '修改失败',
+                                desc:  ''
+                            });
+                            return false;
+                        }
+                    })
+            },
+            //修改用户
+            updateUsertj(){
+                this.$refs['updateUser'].validate((valid) => {
+                    if (valid) {
+                        var params=new URLSearchParams();
+                        params.append("mTel",this.updateUser.mTel)
+                        params.append("email",this.updateUser.email)
+                        axios.put('/user/update/'+ this.updateUser.id,params)
+                            .then((response)=>{
+                                if(response.data.success){
+                                    this.$Notice.success({
+                                        title: '修改成功',
+                                        desc:  ''
+                                    });
+                                    this.updateModal=false;
+                                    this.$refs['updateUser'].resetFields();
+                                    this.queryUserPaging();
+                                }
+                                else{
+                                    this.$Notice.success({
+                                        title: '修改失败',
+                                        desc:  ''
+                                    });
+                                }
+                            })
+                            .catch((error)=>{
+                                try {
+                                    if(error.response.data.success==false){
+                                        if(error.response.data.message=="请先登录"){
+                                            window.top.location.href="/";
+                                        }
+                                        this.$Notice.error({
+                                            title: '修改失败',
+                                            desc:  error.response.data.message
+                                        });
+                                    }
+                                }
+                                catch(err) {
+                                    this.$Notice.error({
+                                        title: '修改失败',
+                                        desc:  ''
+                                    });
+                                }
+                                console.log(error)
+                            })
+                    } else {
+                        this.$Message.error('字段错误');
+                    }
+                })
+            },
+            //导出表格
+            exportData(){
+                const form = document.createElement('form')
+                form.action = "/user/expertUser"
+                form.method = 'GET'
+                form.style.display = 'none'
+                const username=document.createElement("input");
+                username.name="userName"
+                username.value = this.userName;
+
+                const beginCreateTime=document.createElement("input");
+                beginCreateTime.name="beginCreateTime"
+                beginCreateTime.value = this.date_string(this.CreateTimeBeginAndEnd[0]);
+
+                const endCreateTime=document.createElement("input");
+                endCreateTime.name="endCreateTime"
+                endCreateTime.value = this.date_string(this.CreateTimeBeginAndEnd[1]);
+                const isLockout=document.createElement("input");
+                isLockout.name="isLockout"
+                isLockout.value = this.isLockout;
+
+                const order=document.createElement("input");
+                isLockout.name="order"
+                isLockout.value = this.order;
+
+                const protectEMail=document.createElement("input");
+                protectEMail.name="protectEMail"
+                protectEMail.value = this.protectEMail;
+
+                const protectMTel=document.createElement("input");
+                protectMTel.name="protectMTel"
+                protectMTel.value = this.protectMTel;
+
+                const button = document.createElement('input')
+                button.type = 'submit'
+
+
+                form.appendChild(username);
+                form.appendChild(beginCreateTime);
+                form.appendChild(endCreateTime);
+                form.appendChild(isLockout);
+                form.appendChild(order);
+                form.appendChild(protectEMail);
+                form.appendChild(protectMTel);
+                form.appendChild(button)
+                document.body.appendChild(form)
+                form.submit()
+                document.body.removeChild(form)
+            },
+            //提交用户
+            addUser(){
+
+                this.$refs['addUserForm'].validate((valid) => {
+                    if (valid) {
+                        axios.post('/user/add',
+                          this.addUserForm
+                        )
+                            .then((response)=>{
+                                if(response.data.success){
+                                    this.$Notice.success({
+                                        title: '提交成功',
+                                        desc:  ''
+                                    });
+                                    this.addModal=false;
+                                    this.$refs['addUserForm'].resetFields();
+                                    this.queryUserPaging();
+                                }
+                                else{
+                                    this.$Message.error(response.data.message);
+                                }
+                            })
+                            .catch((error)=>{
+                                try {
+                                    if(error.response.data.success==false){
+                                        if(error.response.data.message=="请先登录"){
+                                            window.top.location.href="/";
+                                        }
+                                        this.$Notice.error({
+                                            title: '提交失败',
+                                            desc:  error.response.data.message
+                                        });
+                                    }
+                                }
+                                catch(err) {
+                                    this.$Notice.error({
+                                        title: '提交失败',
+                                        desc:  ''
+                                    });
+                                }
+                                console.log(error)
+                            })
+                    } else {
+                        this.$Message.error('字段错误');
+                    }
+                })
+
+
+
+
+
+            },
+            addModalShow(){
+                this.addModal=true;
+            },
+            addModalHide(){
+                this.addModal=false;
+            },
+            changePage(page){
+                this.current=page;
+                this.queryUserPaging();
+            },
+            changeSize(pagesize){
+                this.pagesize=pagesize;
+                this.queryUserPaging();
+            },
+            /**
+             * 用户分页查询
+             */
+            queryUserPaging() {
+                this.loading=true;
+                axios.get('/user/query', {
+                    params: {
+                        page: this.current,
+                        rows: this.pagesize,
+                        userName: this.userName,
+                        beginCreateTime: this.date_string(this.CreateTimeBeginAndEnd[0]),
+                        endCreateTime: this.date_string(this.CreateTimeBeginAndEnd[1]),
+                        isLockout: this.isLockout,
+                        order: this.order,
+                        protectEMail: this.protectEMail,
+                        protectMTel: this.protectMTel
+                    }
+                })
+                    .then((response) => {
+                        window.setTimeout(()=>{
+                            permissionshow();
+                        },100)
+                        let result = response.data;
+                        this.total = result.total;
+                        let users = result.rows;
+                        this.users = [];
+                        for (let i = 0; i < users.length; i++) {
+                            let user = users[i];
+                            user.roleSet = "设置";
+                            user.userSet = ['修改', '删除', '重置密码'];
+                            user.userLock = ['unlocked', 'locked'];
+                            this.users.push(user);
+                        }
+                        this.loading=false;
+
+
+                        if(this.users.length>=10){
+                            this.tableHeight=10*100;
+                        }else{
+                            this.tableHeight=this.users.length*(100+(40-((this.users.length-1)*4)));
+                        }
+
+                    })
+                    .catch((error) => {
+                        try {
+                            if(error.response.data.success==false){
+                                if(error.response.data.message=="请先登录"){
+                                    window.top.location.href="/";
+                                }
+                                this.$Notice.error({
+                                    title: '查询失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '查询失败',
+                                desc:  ''
+                            });
+                        }
+                        console.log(error)
+                    })
+            },
+            reloadHTML() {
+                //window.location.reload();
+                this.$Spin.show();
+                this.$Loading.start();
+                setTimeout(() => {
+                    this.$Spin.hide();
+                    this.$Loading.finish();
+                    window.location.reload();
+                }, 1000);
+            },
+            date_string(date) {
+                if (typeof(date) != "object") {
+                    return null;
+                }
+                if(date==""){
+                    return null;
+                }
+                let year = date.getFullYear();
+                let month = (date.getMonth() + 1).toString();
+                let day = (date.getDate()).toString();
+                let hour = date.getHours();
+                let min = date.getMinutes();
+                let secod = date.getSeconds();
+                if (month.length == 1) {
+                    month = "0" + month;
+                }
+                if (day.length == 1) {
+                    day = "0" + day;
+                }
+                var dateTime = year + "-" + month + "-" + day + " " + hour + ":" + min + ":" + secod
+                return dateTime;
+            }
+
+        },
+        mounted: function () {
+            this.queryUserPaging()
+        }
+    }
+
+    var Component = Vue.extend(maindata)
+    new Component().$mount('#app')
+</script>
+</html>

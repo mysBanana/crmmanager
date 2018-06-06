@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crm.dao.DynamicmessageMapper">
+
+    <insert id="addDynamicmessage" parameterType="dynamicmessages" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO dynamicmessages(StudentId, StudentName, MessageContent)
+        VALUES (#{studentId},#{studentName},#{messageContent})
+    </insert>
+
+    <select id="queryDynamicmessages" resultType="dynamicmessages">
+        {call askerId_dynamicmessage_proc(#{askerId,mode=IN})}
+    </select>
+
+    <update id="updateDynamicmessage">
+        update dynamicmessages set IsOpen='是' WHERE Id=#{id}
+    </update>
+
+</mapper>

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="/js/iview/dist/styles/iview.css">
+    <link rel="stylesheet" href="/css/buttons.css">
+    <script src="/js/vue.js"></script>
+    <script src="/js/iview/dist/iview.js"></script>
+    <script src="/js/axios.js"></script>
+    <script src="/js/jquery-3.3.1.js"></script>
+    <script src="/js/permissionShow.js"></script>
+    <style>
+        html body{
+            width: 100%;
+            height: auto;
+            background: rgb(2,0,36);
+            background: linear-gradient(90deg, rgba(2,0,36,1) 0%, rgba(235,170,217,0.9699230033810399) 0%, rgba(0,212,255,1) 100%);
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div>
+            <row permissionerequier="userCheck:userCheckQueryPaging" type="flex" justify="space-between" align="middle">
+                <i-col :span="4">
+                    <span>用户名:</span>
+                    <i-input v-model="userCheckPagingForm.userName" placeholder="请输入要查询的用户名称"></i-input>
+                </i-col>
+                <i-col :span="4" offsex="1">
+                    <span>签到状态:</span>
+                    <radio-group v-model="userCheckPagingForm.checkState">
+                        <radio label="已签到">
+                            <span>已签到</span>
+                        </radio>
+                        <radio label="已签退">
+                            <span>已签退</span>
+                        </radio>
+                        <radio label="">
+                            <span>所有</span>
+                        </radio>
+                    </radio-group>
+                </i-col>
+                <i-col :span="4" offsex="1">
+                    <span>签到起止时间:</span>
+                    <date-picker v-model="userCheckPagingForm.checkInTime" split-panels type="datetimerange" format="yyyy-MM-dd HH:mm" placeholder="签到起止时间"></date-picker>
+                </i-col>
+                <i-col :span="3" offsex="1">
+                    <i-button type="success" long @click="queryCheckPagingSearch">搜索</i-button>
+                </i-col>
+                <i-col :span="4" offsex="1" permissionerequier="userCheck:expertUserCheck">
+                    <button @click="expertData"  class="button button-small  button-3d button-royal button-rounded">
+                        <Icon type="android-download"></Icon>
+                        导出数据为表格
+                    </button>
+                </i-col>
+                <i-col :span="4" offsex="1">
+                    <i-button icon="loop" type="info" @click="reloadHTML">刷新</i-button>
+                </i-col>
+            </row>
+        </div>
+        <div style="margin-top: 10px;">
+            <i-table  permissionerequier="userCheck:userCheckQueryPaging" stripe  :data="userCheckData" :loading="userCheckLoadging" :columns="userCheckColumn"></i-table>
+        </div>
+        <div style="margin-top: 10px;display: flex;justify-content: center;align-items: center;">
+            <page @on-page-size-change="pgeSizeChange" @on-change="pageChanage" :total="userCheckPagingForm.total"   :current="userCheckPagingForm.page"
+                  :page-size="userCheckPagingForm.rows" show-elevator show-sizer></page>
+        </div>
+        <div style="display: none"></div>
+    </div>
+</body>
+<script>
+    let maindata={
+        data(){
+            return{
+                userCheckPagingForm:{
+                    userName:'',
+                    checkState:'',
+                    checkInTime:null,
+                    checkInTimeBegin:null,
+                    checkInTimeEnd:null,
+                    page:1,
+                    rows:10,
+                    total:0
+                },
+                userCheckData:[],
+                userCheckColumn:[
+                    {
+                        title:'用户名称',
+                        key:'userName'
+                    },
+                    {
+                        title:'签到时间',
+                        key:'checkInTime'
+                    },
+                    {
+                        title:'签到状态',
+                        key:'checkState'
+                    },
+                    {
+                        title:'是否取消签到',
+                        key:'isCancel',
+                    },
+                    {
+                        title:'签退时间',
+                        key:'checkOutTime'
+                    },
+                    {
+                        title:'操作',
+                        render:(h,params)=>{
+                            if(params.row.checkState=="已签到")
+                            return h('i-button',{
+                                on:{
+                                    click:()=>{
+                                        axios.put('/userCheck/userCheckOut/'+params.row.id)
+                                            .then((response) => {
+                                                if(response.data.success){
+                                                    this.$Notice.success({
+                                                        title: '签退成功',
+                                                        desc:  ''
+                                                    });
+                                                    this.userCheckPaging();
+                                                }
+
+                                            })
+                                            .catch((error)=>{
+                                                try {
+                                                    if(error.response.data.message=="请先登录"){
+                                                        window.top.location.href="/";
+                                                    }
+                                                    if(error.response.data.success==false){
+                                                        this.$Notice.error({
+                                                            title: '签退失败',
+                                                            desc:  error.response.data.message
+                                                        });
+                                                    }
+                                                }
+                                                catch(err) {
+                                                    this.$Notice.error({
+                                                        title: '签退失败',
+                                                        desc:  ''
+                                                    });
+                                                }                                               console.log(error)
+                                            })
+                                    }
+                                }
+                            },'签退')
+                        }
+                    }
+                ],
+                userCheckLoadging:true
+            }
+        },
+        watch:{
+            'userCheckPagingForm.checkInTime':{
+                handler: function (val, oldVal) {
+                    this.userCheckPagingForm.checkInTimeBegin=this.date_string(val[0])
+                    this.userCheckPagingForm.checkInTimeEnd=this.date_string(val[1])
+                },
+                deep: true
+        }
+    },
+        methods: {
+            importsuc(response, file, fileList){
+                if(response.success){
+                    this.$Message.success("成功");
+                }else{
+                    this.$Message.error(response.message);
+                }
+
+            },
+            importerr(error, file, fileList){
+                this.$Message.error(error.message);
+            },
+            expertData(){
+                const form = document.createElement('form')
+                form.action = "/userCheck/expertUserCheck"
+                form.method = 'GET'
+                form.style.display = 'none'
+
+                for(let key in this.userCheckPagingForm){
+                    let input=document.createElement("input");
+                    input.name=key;
+                    input.value=this.userCheckPagingForm[key];
+                    if(key=="rows")
+                        input.value=0
+                    form.appendChild(input)
+                }
+
+                const button = document.createElement('input')
+                button.type = 'submit'
+                form.appendChild(button)
+                document.body.appendChild(form)
+                form.submit()
+                document.body.removeChild(form)
+            },
+            pageChanage(page){
+                this.userCheckPagingForm.page=page;
+                this.userCheckPaging();
+            },
+            pgeSizeChange(size){
+                this.userCheckPagingForm.rows=size;
+                this.userCheckPaging();
+            },
+            queryCheckPagingSearch(){
+                this.userCheckPagingForm.page=1;
+                this.userCheckPaging();
+            },
+            userCheckPaging(){
+                window.setTimeout(()=>{
+                    permissionshow();
+                },100)
+                this.userCheckData=[];
+                this.userCheckLoadging=true;
+                axios.get('/userCheck/userCheckQueryPaging',{
+                    params:this.userCheckPagingForm
+                })
+                    .then((response) => {
+                        this.userCheckPagingForm.total=response.data.total;
+                        this.userCheckData=response.data.rows;
+                        this.userCheckLoadging=false;
+
+
+                    })
+                    .catch((error)=>{
+                        try {
+                            if(error.response.data.message=="请先登录"){
+                                window.top.location.href="/";
+                            }
+                            if(error.response.data.success==false){
+                                this.$Notice.error({
+                                    title: '查询失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '查询失败',
+                                desc:  ''
+                            });
+                        }                                               console.log(error)
+                    })
+
+
+            },
+            date_string(date) {
+                if (typeof(date) != "object" || date=="" ||date==null) {
+                    return null;
+                }
+                let year = date.getFullYear();
+                let month = (date.getMonth() + 1).toString();
+                let day = (date.getDate()).toString();
+                let hour = date.getHours();
+                let min = date.getMinutes();
+                let secod = date.getSeconds();
+                if (month.length == 1) {
+                    month = "0" + month;
+                }
+                if (day.length == 1) {
+                    day = "0" + day;
+                }
+                var dateTime = year + "-" + month + "-" + day + " " + hour + ":" + min + ":" + secod
+                return dateTime;
+            },
+            //页面刷新
+            reloadHTML() {
+                //window.location.reload();
+                this.$Spin.show();
+                this.$Loading.start();
+                setTimeout(() => {
+                    this.$Spin.hide();
+                    this.$Loading.finish();
+                    window.location.reload();
+                }, 1000);
+            },
+        },
+        mounted(){
+            this.userCheckPaging();
+        }
+    }
+    var Component = Vue.extend(maindata)
+    new Component().$mount('#app')
+</script>
+</html>

@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="/css/buttons.css">
+    <link rel="stylesheet" href="/js/iview/dist/styles/iview.css">
+    <script src="/js/vue.js"></script>
+    <script src="/js/iview/dist/iview.js"></script>
+    <script src="/js/axios.js"></script>
+    <script src="/js/jquery-3.3.1.js"></script>
+    <script src="/js/permissionShow.js"></script>
+    <style>
+        html body{
+            width: 100%;
+            height: auto;
+            background: rgb(2,0,36);
+            background: linear-gradient(90deg, rgba(2,0,36,1) 0%, rgba(235,170,217,0.9699230033810399) 0%, rgba(0,212,255,1) 100%);
+        }
+    </style>
+</head>
+<body>
+   <div id="app">
+       <div>
+           <row type="flex" justify="space-around" align="middle" permissionerequier="recycling:queryRecyclingPaging">
+               <i-col :span="3">
+                   <span>查询类型</span>
+                   <i-select clearable v-model="recylingForm.tableName" placeholder="请选择要查询的">
+                       <i-option value="users">
+                           用户
+                       </i-option>
+                       <i-option value="students">
+                           学生
+                       </i-option>
+                       <i-option value="roles">
+                           角色
+                       </i-option>
+                       <i-option value="modules">
+                           模块
+                       </i-option>
+                   </i-select>
+               </i-col>
+               <i-col :span="6">
+                   <span>删除起止时间:</span>
+                   <date-picker v-model="recylingForm.CreateBeginAndEnd" split-panels type="datetimerange" format="yyyy-MM-dd HH:mm"
+                                placeholder="创建时间的起止"></date-picker>
+               </i-col>
+               <i-col :span="3">
+                   <i-button @click="recylingSearch" type="primary" shape="circle" icon="ios-search">搜索</i-button>
+               </i-col>
+               <i-col :span="1">
+                   <span>&nbsp;</span>
+                   <i-button icon="loop" type="info" @click="reloadHTML">刷新</i-button>
+               </i-col>
+           </row>
+           <row type="flex" justify="space-around" align="middle" style="margin-top: 20px;">
+               <i-col :span="3" permissionerequier="recycling:reductionList">
+                   <button @click="reduction"  class="button button-glow button-rounded button-raised button-primary">
+                       还原
+                   </button>
+               </i-col>
+               <i-col :span="3" permissionerequier="recycling:deleteDRecyling">
+                   <button @click="deleteD"  class="button button-glow button-rounded button-caution">
+                       彻底删除
+                   </button>
+               </i-col>
+           </row>
+       </div>
+       <div style="margin-top: 20px;">
+           <i-table @on-selection-change="selectChange" :loading="recylingForm.loading" permissionerequier="recycling:queryRecyclingPaging"  :columns="tableTitle" :data="recylingData"></i-table>
+       </div>
+       <div style="display: flex;justify-content: center;align-items: center;margin-top: 20px;">
+           <page  @on-change="changePage" @on-page-size-change="changeSize" :total="recylingForm.total"  :current="recylingForm.page"
+                  :page-size="recylingForm.rows" show-elevator show-sizer></page>
+       </div>
+       <div style="display: none">
+           <modal v-model="updateNameModal" title="重命名">
+               <i-input v-model="activeRecylingData.string0"></i-input>
+               <div slot="footer">
+                   <i-button @click="updateNameMethod" type="success" size="large" long>确认修改</i-button>
+               </div>
+           </modal>
+       </div>
+   </div>
+</body>
+<script>
+    let maindata={
+        data(){
+            return{
+                activeRecylingData:{},
+                updateNameModal:false,
+                recylingForm:{
+                    loading:true,
+                    tableName:'',
+                    createTimeStart:null,
+                    createTimeEnd:null,
+                    CreateBeginAndEnd:[],
+                    page:1,
+                    rows:10,
+                    total:0
+                },
+                tableTitle:[
+                    {
+                        type: 'selection',
+                        width: 60,
+                        align: 'center',
+                        fixed: "left",
+                    },
+                    {
+                        title:'回收类型',
+                        key:'deleteTable'
+                    },
+                    {
+                        title:'删除名称',
+                        key:'string0'
+                    },
+                    {
+                        title:'删除时间',
+                        key:'createTime'
+                    },
+                    {
+                        title:'操作',
+                        render:(h,params)=>{
+                            return h('div',[
+                                h('i-button',{
+                                    on:{
+                                        click:()=>{
+                                            this.activeRecylingData=params.row
+                                            this.updateNameModal=true;
+                                        }
+                                    }
+                                },"重命名")
+                            ])
+                        }
+                    }
+                ],
+                recylingData:[],
+                recylingDataSelect:[]
+            }
+        },
+        watch:{
+            'recylingForm.CreateBeginAndEnd':{
+                handler: function (val, oldVal) {
+                    this.recylingForm.createTimeStart=this.date_string(val[0])
+                    this.recylingForm.createTimeEnd=this.date_string(val[1])
+                },
+                deep: true
+            },
+        },
+        methods:{
+            deleteD(){
+                if(this.recylingDataSelect.length==0){
+                    this.$Notice.info({
+                        title: '请选择需要还原的数据',
+                        desc:  ''
+                    });
+                    return;
+                }
+
+                for(let i=0;i<this.recylingDataSelect.length;i++){
+                    let recyling=this.recylingDataSelect[i];
+                    let params=new URLSearchParams();
+                    params.append("recylingId",recyling.recylingId);
+                    params.append("deleteTable",recyling.deleteTable);
+                    params.append("deleteId",recyling.deleteId);
+                    params.append("string0",recyling.string0);
+                    axios.delete('/recycling/deleteDRecyling',{
+                        params:params
+                    })
+                        .then((response) => {
+                            if(response.data.success){
+                                this.$Notice.success({
+                                    title: '删除成功',
+                                    desc:  ''
+                                });
+                            }
+                            if(i>=this.recylingDataSelect.length-1){
+                                this.queryRecylingPaging();
+                            }
+                        })
+                        .catch((error)=>{
+                            try {
+                                if(error.response.data.message=="请先登录"){
+                                    window.top.location.href="/";
+                                }
+                                if(error.response.data.success==false){
+                                    this.$Notice.error({
+                                        title: '删除失败',
+                                        desc:  error.response.data.message
+                                    });
+                                }
+                            }
+                            catch(err) {
+                                this.$Notice.error({
+                                    title: '删除失败',
+                                    desc:  ''
+                                });
+                            }
+                            console.log(error)
+                        })
+                }
+            },
+            updateNameMethod(){
+                let params=new URLSearchParams();
+                params.append("string0",this.activeRecylingData.string0)
+                axios.put('/recycling/updateString0Byid/'+this.activeRecylingData.recylingId,params)
+                    .then((response) => {
+                        if(response.data.success){
+                            this.$Notice.success({
+                                title: '修改成功',
+                                desc:  ''
+                            });
+                            this.queryRecylingPaging();
+                            this.updateNameModal=false;
+                        }else{
+                            this.$Notice.error({
+                                title: '修改失败',
+                                desc:  ''
+                            });
+                        }
+                    })
+                    .catch((error)=>{
+                        try {
+                            if(error.response.data.message=="请先登录"){
+                                window.top.location.href="/";
+                            }
+                            if(error.response.data.success==false){
+                                this.$Notice.error({
+                                    title: '修改失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '修改失败',
+                                desc:  ''
+                            });
+                        }
+                        console.log(error)
+                    })
+            },
+            reduction(){
+                if(this.recylingDataSelect.length==0){
+                    this.$Notice.info({
+                        title: '请选择需要还原的数据',
+                        desc:  ''
+                    });
+                    return;
+                }
+
+                for(let i=0;i<this.recylingDataSelect.length;i++){
+                    let recyling=this.recylingDataSelect[i];
+                    axios.post('/recycling/reductionList',recyling)
+                        .then((response) => {
+                            if(response.data.success){
+                                this.$Notice.success({
+                                    title: recyling.string0+' 还原成功',
+                                    desc:  ''
+                                });
+                            }else{
+                                this.$Notice.error({
+                                    title: '还原失败',
+                                    desc:  recyling.string0+" "+response.data.remark+" 请修改"
+                                });
+                            }
+                            if(i>=this.recylingDataSelect.length-1){
+                                this.queryRecylingPaging();
+                            }
+                        })
+                        .catch((error)=>{
+                            try {
+                                if(error.response.data.message=="请先登录"){
+                                    window.top.location.href="/";
+                                }
+                                if(error.response.data.success==false){
+                                    this.$Notice.error({
+                                        title: '还原失败',
+                                        desc:  error.response.data.message
+                                    });
+                                }
+                            }
+                            catch(err) {
+                                this.$Notice.error({
+                                    title: '还原失败',
+                                    desc:  ''
+                                });
+                            }
+                            console.log(error)
+                        })
+                }
+
+
+            },
+            selectChange(selection){
+                this.recylingDataSelect=selection;
+            },
+            changeSize(rows){
+                this.recylingForm.rows=rows;
+                this.queryRecylingPaging();
+            },
+            changePage(page){
+                this.recylingForm.page=page;
+                this.queryRecylingPaging();
+            },
+            recylingSearch(){
+                this.recylingForm.page=1;
+                this.queryRecylingPaging();
+            },
+            queryRecylingPaging(){
+                this.recylingForm.loading=true;
+                this.recylingData=[];
+                axios.get('/recycling/queryRecyclingPaging',{
+                    params:this.recylingForm
+                })
+                    .then((response) => {
+
+                        this.recylingData=response.data.rows.map(row=>{
+                            let tabName=row.deleteTable;
+                            switch (tabName){
+                                case 'users':
+                                    tabName="用户";
+                                    break;
+                                case 'students':
+                                    tabName="学生"
+                                    break;
+                                case 'roles':
+                                    tabName="角色"
+                                    break;
+                                case 'modules':
+                                    tabName="模块"
+                                    break;
+                            }
+                            row.deleteTable=tabName;
+                            return row;
+                        });
+                        this.recylingForm.total=response.data.total;
+                        this.recylingForm.loading=false;
+                        window.setTimeout(()=>{
+                            permissionshow();
+                        },100)
+                    })
+                    .catch((error)=>{
+                        try {
+                            if(error.response.data.message=="请先登录"){
+                                window.top.location.href="/";
+                            }
+                            if(error.response.data.success==false){
+                                this.$Notice.error({
+                                    title: '查询失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '查询失败',
+                                desc:  ''
+                            });
+                        }
+                        console.log(error)
+                    })
+
+            },
+            reloadHTML() {
+                //window.location.reload();
+                this.$Spin.show();
+                this.$Loading.start();
+                setTimeout(() => {
+                    this.$Spin.hide();
+                    this.$Loading.finish();
+                    window.location.reload();
+                }, 1000);
+            },
+            //格式化时间
+            date_string(date) {
+                if (typeof(date) != "object" || date=="" ||date==null) {
+                    return null;
+                }
+                let year = date.getFullYear();
+                let month = (date.getMonth() + 1).toString();
+                let day = (date.getDate()).toString();
+                let hour = date.getHours();
+                let min = date.getMinutes();
+                let secod = date.getSeconds();
+                if (month.length == 1) {
+                    month = "0" + month;
+                }
+                if (day.length == 1) {
+                    day = "0" + day;
+                }
+                var dateTime = year + "-" + month + "-" + day + " " + hour + ":" + min + ":" + secod
+                return dateTime;
+            }
+        },
+        mounted(){
+            this.queryRecylingPaging();
+        }
+    }
+    var Component = Vue.extend(maindata)
+    new Component().$mount('#app')
+</script>
+</html>

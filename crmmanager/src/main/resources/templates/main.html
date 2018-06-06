@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CRM管理</title>
+    <link rel="stylesheet" href="/js/iview/dist/styles/iview.css">
+    <link rel="stylesheet" href="/css/buttons.css">
+    <script src="/js/vue.js"></script>
+    <script src="/js/iview/dist/iview.js"></script>
+    <script src="/js/axios.js"></script>
+    <script src="/js/jquery-3.3.1.js"></script>
+    <script src="/js/permissionShow.js"></script>
+    <style>
+        html,body{
+            background: rgb(228,20,20);
+            background: linear-gradient(90deg, rgba(228,20,20,0.6449930313922444) 5%, rgba(136,136,230,1) 19%, rgba(136,204,230,1) 30%, rgba(171,232,20,0.8998949921765581) 39%, rgba(245,236,245,0.8998949921765581) 48%, rgba(23,214,96,0.8998949921765581) 60%, rgba(212,11,230,0.8998949921765581) 71%, rgba(11,230,216,0.8998949921765581) 84%) !important;
+        }
+        #app,.ivu-layout,.layout-footer-center,.ivu-menu-light{
+            background: rgb(228,20,20);
+            background: linear-gradient(90deg, rgba(228,20,20,0.6449930313922444) 5%, rgba(136,136,230,1) 19%, rgba(136,204,230,1) 30%, rgba(171,232,20,0.8998949921765581) 39%, rgba(245,236,245,0.8998949921765581) 48%, rgba(23,214,96,0.8998949921765581) 60%, rgba(212,11,230,0.8998949921765581) 71%, rgba(11,230,216,0.8998949921765581) 84%) !important;
+        }
+        .ivu-layout-sider-children,.ivu-layout-content{
+            background: rgb(2,0,36) !important;
+            background: linear-gradient(90deg, rgba(2,0,36,1) 0%, rgba(235,170,217,0.9699230033810399) 0%, rgba(0,212,255,1) 100%) !important;
+        }
+        .layout{
+            border: 1px solid #d7dde4;
+            background: #f5f7f9;
+            position: relative;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .layout-logo{
+
+            border-radius: 3px;
+            padding-left: 20px;
+            display: flex;
+        }
+        .layout-nav{
+            margin: auto auto;
+            margin-right: 20px;
+            float: right;
+        }
+        .layout-footer-center{
+            text-align: center;
+        }
+        .ivu-layout-header{
+            background: none;
+        }
+        .messageDiv div,button{
+            margin-top: 10px;
+            font-size: 16px;
+        }
+        .ivu-tree ul{
+            height: auto !important;
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div class="layout">
+        <layout>
+            <i-header>
+                <div style="display: flex;justify-content: space-between;align-items: center;">
+                    <div class="layout-logo">
+                        <div>
+                            <avatar size="large" src="/image/avatar.jpg" />
+                        </div>
+                        <div style="font-size: 20px;margin-left: 8px;">
+                            {{loginName}}
+                        </div>
+                        <div style="margin-left: 20px;">
+                            <dropdown @on-click="clickDropDown">
+                                <div style="font-size: 14px;text-decoration:underline;">
+                                    个人操作
+                                    <icon type="arrow-down-b"></icon>
+                                </div>
+                                <dropdown-menu slot="list">
+                                    <dropdown-item name="updatePassword">修改密码</dropdown-item>
+                                    <dropdown-item name="exit">安全退出</dropdown-item>
+                                    <dropdown-item name="check" v-if="!isCheck">签到</dropdown-item>
+                                    <dropdown-item name="checkOut" v-else-if="!isCheckOut && isCheck">签退</dropdown-item>
+                                </dropdown-menu>
+                            </dropdown>
+                        </div>
+                    </div>
+
+                    <div permissionerequier="permission:addAll" class="layout-nav" v-if="addPermissionBtn">
+                        <button  @click="addPermissionAll" class="button button-small button-3d button-primary button-rounded">
+                    <Icon type="loop"></Icon>
+                    更新全部权限信息
+                        </button>
+                    </div>
+
+                </div>
+            </i-header>
+            <layout style="padding:0 50px;height:100%;">
+                <i-content :style="{background: '#fff'}">
+                    <layout>
+                        <sider hide-trigger :style="{background: '#fff'}">
+                            <tree :data="moduletree" @on-select-change="changeTree"></tree>
+                        </sider>
+                        <i-content :style="{padding: '24px', minHeight: '280px', background: '#fff'}">
+
+                            <!--<component :is="moduleview">
+                            </component>-->
+
+                            <tabs  type="card" :value="tabsvalue" closable @on-tab-remove="handleTabRemove">
+                                <tab-pane v-for="tab in tabs" :name="tab.id"  :key="tab.id" :icon="tab.icon_class" :label="tab.title" >
+                                    <iframe  width='100%' height='1800px'  frameborder="0" scrolling="no"   :src="tab.path"></iframe>
+                                </tab-pane>
+                            </tabs>
+                        </i-content>
+                    </layout>
+                </i-content>
+            </layout>
+            <i-footer class="layout-footer-center">2018-2018 &copy; 郭文壮&秦园梦</i-footer>
+            <div id="refereTree" style="display: none" @click="moduleTree()"></div>
+        </layout>
+    </div>
+    <div style="display: none">
+        <modal v-model="updatePasswordModal"  title="修改密码"  :mask-closable="false">
+            <div>
+                <i-form :label-width="100" :model="updatePasswordForm"  label-position="right"  ref="updatePasswordRef" :rules="updatePasswordRules" >
+                    <form-item  label="请输入旧密码"  prop="oldPassword">
+                        <i-input type="password" v-model="updatePasswordForm.oldPassword" placeholder="请输入旧密码" >
+                        </i-input>
+                    </form-item >
+                    <form-item  label="密码"   prop="newPassword1">
+                        <i-input type="password" v-model="updatePasswordForm.newPassword1" placeholder="请输入新密码" >
+                        </i-input>
+                    </form-item >
+                    <form-item  label="确认密码"  prop="newPassword2">
+                        <i-input type="password" v-model="updatePasswordForm.newPassword2" placeholder="请再此输入新密码">
+                        </i-input>
+                    </form-item >
+                </i-form>
+            </div>
+            <div slot="footer">
+                <button class="button button-raised button-primary button-pill" @click="updatePssword">确认修改</button>
+                <button class="button button-raised button-royal button-pill" @click="updatePasswordModal=false">取消</button>
+            </div>
+        </modal>
+
+    </div>
+</div>
+</div>
+</body>
+<script>
+   let maindata={
+        data(){
+
+            const validatePass = (rule, value, callback) => {
+                if (value === '') {
+                    callback(new Error('请输入密码!'));
+                } else {
+                    if (this.updatePasswordForm.newPassword2 !== '') {
+                        // 对第二个密码框单独验证
+                        this.$refs.updatePasswordRef.validateField('newPassword2');
+                    }
+                    callback();
+                }
+            };
+            const validatePassCheck = (rule, value, callback) => {
+                if (value === '') {
+                    callback(new Error('请重新输入密码!'));
+                } else if (value !== this.updatePasswordForm.newPassword1) {
+                    callback(new Error('密码与上次不一致!'));
+                } else {
+                    callback();
+                }
+            };
+            const validateoldPassword= (rule, value, callback) => {
+                if (!value) {
+                    return callback(new Error('旧密码不能为空'));
+                }
+                axios.get('/user/validaPssword',{
+                    params:{
+                        password:value
+                    }
+                })
+                    .then((response)=>{
+                        if(!response.data.success){
+                             callback(new Error('密码错误'));
+                        }else{
+                            callback();
+                        }
+                    })
+                    .catch((error)=>{
+
+                        try {
+                            if(error.response.data.success==false){
+                                if(error.response.data.message=="请先登录"){
+                                    window.top.location.href="/";
+                                }
+                                this.$Notice.error({
+                                    title: '查询失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '查询失败',
+                                desc:  ''
+                            });
+                        }
+                        console.log(error)
+                    })
+            };
+
+            return{
+                websocket:null,
+                updatePasswordRules:{
+                    oldPassword:[
+                        { validator: validateoldPassword,required:true, trigger: 'blur' }
+                    ],
+                    newPassword1: [
+                        { validator: validatePass, required:true,message:"密码不能为空!",trigger: 'blur' }
+                    ],
+                    newPassword2: [
+                        { validator:validatePassCheck,required:true,message:"两次密码不一致!", trigger: 'blur' }
+                    ],
+                },
+                updatePasswordModal:false,
+                updatePasswordForm:{
+                    oldPassword:'',
+                    newPassword1:"",
+                    newPassword2:"",
+                },
+                moduletree: [],
+                tabs:[],
+                tabsvalue:'',
+                addPermissionBtn:false,
+                loginName:'',
+                isCheck:false,
+                isCheckOut:false,
+            }
+
+        },
+        methods:{
+            checkAndCheckOut(flag){
+                let userId=localStorage.getItem("userId");
+                let param=new URLSearchParams();
+                let title=flag?"签到":"签退";
+                param.append("flag",flag)
+                axios.post("/userCheck/userCheckAndCheckOut/"+userId,param)
+                    .then((response)=>{
+                       if(response.data){
+                           if(flag)
+                           this.isCheck=true;
+                           else
+                               this.isCheckOut=true;
+                           this.$Notice.success({
+                               title: title+"成功",
+                               desc:  ''
+                           });
+                       }else{
+                           this.$Notice.error({
+                               title: title+"失败",
+                               desc:  ''
+                           });
+                       }
+                    })
+                    .catch((error)=>{
+
+                        try {
+                            if(error.response.data.success==false){
+                                if(error.response.data.message=="请先登录"){
+                                    window.top.location.href="/";
+                                }
+                                this.$Notice.error({
+                                    title: title+"失败",
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: title+"失败",
+                                desc:  ''
+                            });
+                        }
+                        console.log(error)
+                    })
+            },
+            exit(){
+                localStorage.removeItem("loginName");
+                localStorage.removeItem("roleNames");
+                localStorage.removeItem("userId");
+                axios.delete('/user/exit')
+                    .then((response)=>{
+                        location.href="/";
+                    })
+                    .catch((error)=>{
+
+                        try {
+                            if(error.response.data.success==false){
+                                if(error.response.data.message=="请先登录"){
+                                    window.top.location.href="/";
+                                }
+                                this.$Notice.error({
+                                    title: '退出失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '退出失败',
+                                desc:  ''
+                            });
+                        }
+                        console.log(error)
+                    })
+            },
+            updatePssword(){
+             //   this.updatePasswordModal=false;
+
+                this.$refs['updatePasswordRef'].validate((valid) => {
+                    if (valid) {
+                        let params=new URLSearchParams();
+                        params.append("password",this.updatePasswordForm.newPassword1)
+                        axios.put('/user/updatePassword',params)
+                            .then((response)=>{
+                                if(response.data.success){
+                                    this.updatePasswordModal=false;
+                                    this.$Message.success('修改成功,3秒后跳转到首页');
+                                    let shijian=3;
+                                    window.setInterval(()=>{
+                                        shijian--;
+                                        this.$Message.success(shijian+'秒后跳转到首页');
+                                        if(shijian<=0){
+                                            location.href="/";
+                                        }
+                                    },1000)
+
+                                }else {
+                                    this.$Notice.error({
+                                        title: '修改失败',
+                                        desc:  response.data.message
+                                    });
+                                }
+                            })
+                            .catch((error)=>{
+
+                                try {
+                                    if(error.response.data.success==false){
+                                        if(error.response.data.message=="请先登录"){
+                                            window.top.location.href="/";
+                                        }
+                                        this.$Notice.error({
+                                            title: '修改失败',
+                                            desc:  error.response.data.message
+                                        });
+                                    }
+                                }
+                                catch(err) {
+                                    this.$Notice.error({
+                                        title: '修改失败',
+                                        desc:  ''
+                                    });
+                                }
+                                console.log(error)
+                            })
+                    } else {
+                        this.$Message.error('字段错误!');
+                    }
+                })
+
+
+            },
+            //点击菜单
+            clickDropDown(name){
+                if(name=="updatePassword"){
+                    this.updatePasswordModal=true;
+                }
+                if(name=="exit"){
+                    this.exit();
+                }
+                if(name=="check"){
+                    this.checkAndCheckOut(true)
+                }
+                if(name=="checkOut"){
+                    this.checkAndCheckOut(false)
+                }
+
+            },
+            addPermissionAll(){//更新所有权限
+                axios.post('/permission/addAll')
+                    .then((response)=>{
+                        if(response.data.success){
+                            this.$Notice.success({
+                                title: '更新成功',
+                                desc:  response.data.message
+                            });
+                        }else{
+                            this.$Notice.error({
+                                title: '更新失败',
+                                desc:  response.data.message
+                            });
+                        }
+                    })
+                    .catch((error)=>{
+                        try {
+                            if(error.response.data.success==false){
+                                if(error.response.data.message=="请先登录"){
+                                    window.top.location.href="/";
+                                }
+                                this.$Notice.error({
+                                    title: '修改失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '修改失败',
+                                desc:  ''
+                            });
+                        }
+                        console.log(error)
+                    })
+            },
+            getJsonTree(data,parentId){
+                let itemArr=[];
+                for(let i=0;i<data.length;i++){
+                    let node=data[i];
+                    if(node.parentId==parentId ){
+                        let newNode={
+                            id:node.id,
+                            title:node.name,
+                            parentId:node.parentId,
+                            path:node.path,
+                            weight:node.weight,
+                            icon_class:node.icon_class,
+                            expand:true,
+                            children:this.getJsonTree(data,node.id)
+                        };
+                        itemArr.push(newNode);
+                    }
+                }
+                return itemArr;
+            },
+            changeTree(node){
+                if(node.length==0)
+                    return
+                let newnode=node[0];
+                let path='/'+newnode.path;
+                path=path.replace(".jsp",".html");
+                if(newnode.children.length==0){ //判断是不是最下层节点
+                    let tab={id:newnode.id+'',title:newnode.title,icon_class:newnode.icon_class,path:path};
+                    for(let i=0;i<this.tabs.length;i++){
+                        if(this.tabs[i].id==tab.id){
+                            this.tabsvalue=tab.id
+                            return;
+                        }
+                    }
+                    this.tabs.push(tab)
+                    this.tabsvalue=tab.id
+                }
+
+
+            },
+            handleTabRemove(name){
+                this.tabs=this.tabs.filter(row=>{
+                    return row.id!=name;
+                })
+            },
+            moduleTree(){
+
+                let roleNames=localStorage.getItem("roleNames");
+                axios.get("/module/queryModuleByRoleName",{
+                    params:{
+                        roleNames:roleNames
+                    }
+                })
+                    .then((response)=>{
+                        let moduledata=response.data;
+
+                        let dataTree=this.getJsonTree(moduledata,0);
+                        this.moduletree=dataTree;
+
+                        window.setTimeout(()=>{
+                            permissionshow();
+                        },100)
+
+                    })
+                    .catch((error)=>{
+                        try {
+                            if(error.response.data.success==false){
+                                if(error.response.data.message=="请先登录"){
+                                    window.top.location.href="/";
+                                }
+                                this.$Notice.error({
+                                    title: '修改失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '修改失败',
+                                desc:  ''
+                            });
+                        }
+                        console.log(error)
+                    })
+            },
+            showUserCheckAndCheckOut(){
+                let userId=localStorage.getItem("userId");
+                axios.get('/userCheck/showUserCheckAndCheckOut/'+userId)
+                    .then((response)=>{
+                        this.isCheck=response.data.isCheck
+                        this.isCheckOut=response.data.isCheckOut
+                    })
+                    .catch((error)=>{
+
+                        try {
+                            if(error.response.data.success==false){
+                                if(error.response.data.message=="请先登录"){
+                                    window.top.location.href="/";
+                                }
+                                this.$Notice.error({
+                                    title: '修改失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '修改失败',
+                                desc:  ''
+                            });
+                        }
+                        console.log(error)
+                    })
+            }
+        },
+
+        mounted(){
+            this.websocket = new WebSocket("ws://localhost:80/socketServer/"+localStorage.getItem("userId"));
+            this.websocket.onmessage = event=>{
+               let m=JSON.parse(event.data);
+                this.$Notice.info({
+                    title: '通知信息',
+                    duration:0,
+                    name:m.id,
+                    render:h=>{
+                        return h('div',{
+                            class:'messageDiv'
+                        },[
+                            h('div','学生姓名: '+m.studentName),
+                            h('div','内容: '+m.messageContent),
+                            h('i-button',{
+                                props:{
+                                    type:'success',
+                                    long:true
+                                },
+                                on:{
+                                    click:()=>{
+                                        axios.put('/dynamicmessage/updateDynamicmessage/'+m.id)
+                                            .then((response)=>{
+                                                if(response.data.success){
+                                                    this.$Message.success('读取成功');
+                                                    this.$Notice.close(m.id);
+                                                }else{
+                                                    this.$Message.error('修改失败');
+                                                }
+                                            })
+                                            .catch((error)=>{
+                                                try {
+                                                    if(error.response.data.message=="请先登录"){
+                                                        window.top.location.href="/";
+                                                    }
+                                                    if(error.response.data.success==false){
+                                                        this.$Message.error(error.response.data.message);
+                                                    }
+                                                }
+                                                catch(err) {
+                                                    this.$Message.error('修改失败');
+                                                }                                               console.log(error)
+                                            })
+
+                                    }
+                                }
+                            },'确认读取')
+                        ])
+                    }
+                });
+            }
+
+
+            this.showUserCheckAndCheckOut();
+            this.loginName=localStorage.getItem("loginName");
+            let roleNames=localStorage.getItem("roleNames");
+            if(roleNames.indexOf("管理员")!=-1)  //管理员登录
+            this.addPermissionBtn=true;
+            if(roleNames.indexOf("咨询师")!=-1){//咨询师登录
+                let userId=localStorage.getItem("userId");
+                axios.get('/dynamicmessage/queryDynamicmessagesByAskerId',{
+                    params:{
+                        askerId:userId
+                    }
+                })
+                    .then((response)=>{
+                        let message=response.data;
+                            for(let m of message){
+                                this.$Notice.info({
+                                    title: '通知信息',
+                                    duration:0,
+                                    name:m.id,
+                                    render:h=>{
+                                        return h('div',{
+                                            class:'messageDiv'
+                                        },[
+                                            h('div','学生姓名: '+m.studentName),
+                                            h('div','内容: '+m.messageContent),
+                                            h('i-button',{
+                                                props:{
+                                                    type:'success',
+                                                    long:true
+                                                },
+                                                on:{
+                                                    click:()=>{
+                                                        axios.put('/dynamicmessage/updateDynamicmessage/'+m.id)
+                                                            .then((response)=>{
+                                                                if(response.data.success){
+                                                                    this.$Message.success('读取成功');
+                                                                    this.$Notice.close(m.id);
+                                                                }else{
+                                                                    this.$Message.error('修改失败');
+                                                                }
+                                                            })
+                                                            .catch((error)=>{
+                                                                try {
+                                                                    if(error.response.data.message=="请先登录"){
+                                                                        window.top.location.href="/";
+                                                                    }
+                                                                    if(error.response.data.success==false){
+                                                                        this.$Message.error(error.response.data.message);
+                                                                    }
+                                                                }
+                                                                catch(err) {
+                                                                    this.$Message.error('修改失败');
+                                                                }                                               console.log(error)
+                                                            })
+
+                                                    }
+                                                }
+                                            },'确认读取')
+                                        ])
+                                    }
+                                });
+                            }
+                    })
+                    .catch((error)=>{
+                        try {
+                            if(error.response.data.message=="请先登录"){
+                                window.top.location.href="/";
+                            }
+                            if(error.response.data.success==false){
+                                this.$Notice.error({
+                                    title: '查询失败',
+                                    desc:  error.response.data.message
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '查询失败',
+                                desc:  ''
+                            });
+                        }
+                        console.log(error)
+                    })
+            }
+        this.moduleTree();
+
+        }
+
+    }
+   var Component = Vue.extend(maindata)
+   new Component().$mount('#app')
+</script>
+</html>

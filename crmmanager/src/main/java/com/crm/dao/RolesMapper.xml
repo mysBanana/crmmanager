@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crm.dao.RolesMapper">
+
+    <select id="queryRolesByUserName" resultType="roles">
+      {call user_role_proc(#{un,mode=IN})}
+    </select>
+
+    <select id="queryRolesByUserNameAll" resultType="roles">
+      {call user_role_procall(#{un,mode=IN})}
+    </select>
+
+    <select id="queryRoles" resultType="roles">
+      SELECT * FROM roles WHERE   Id not in(select deleteId from recycling where deleteTable='roles');
+    </select>
+
+    <select id="queryRolesByNoUserName" resultType="roles">
+        {call noUser_role_proc(#{un,mode=IN})}
+    </select>
+
+    <select id="queryRolesPaging" resultType="roles">
+      select SQL_CALC_FOUND_ROWS * from roles 
+      <where>
+          <if test="roleName!=null and roleName!=''">
+              and Name like "%"#{roleName}"%"
+          </if>
+          <if test="1==1">
+              and Id not in(select deleteId from recycling where deleteTable='roles')
+          </if>
+      </where>
+        <if test="rows!=0">
+            limit #{offsex},#{rows}
+        </if>
+    </select>
+
+    <select id="queryRolesPagingRows" resultType="int">
+        SELECT FOUND_ROWS();
+    </select>
+
+    <insert id="addRole">
+      INSERT INTO roles(Id,Name)
+              VALUES (#{role.id},#{role.name})
+    </insert>
+
+    <update id="updateRole">
+        update roles set Name=#{role.name} where Id=#{role.id}
+    </update>
+
+    <delete id="deleteRole">
+      delete from roles where Id=#{roleId}
+    </delete>
+
+    <select id="queryRolesByRoleId" resultType="roles">
+        SELECT * FROM roles WHERE Id=#{roleId}
+    </select>
+</mapper>

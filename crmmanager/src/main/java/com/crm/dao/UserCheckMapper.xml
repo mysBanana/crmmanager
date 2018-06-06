@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crm.dao.UserCheckMapper">
+
+    <select id="queryUserChecks" parameterType="userCheckQuery" resultType="userchecks">
+      SELECT SQL_CALC_FOUND_ROWS * FROM userchecks
+        <where>
+            <if test="userName!=null and userName!=''">
+               and UserName like "%"#{userName}"%"
+            </if>
+            <if test="checkState!=null and checkState!=''">
+                and CheckState=#{checkState}
+            </if>
+            <if test="checkInTimeBegin!=null">
+                and  CheckInTime &gt;= #{checkInTimeBegin}
+            </if>
+            <if test="checkInTimeEnd!=null">
+                and CheckInTime &lt;= #{checkInTimeEnd}
+            </if>
+        </where>
+        <if test="rows!=0">
+            limit #{offsex},#{rows}
+        </if>
+    </select>
+
+    <update id="updateuUserCheckOut">
+      UPDATE userchecks
+      set CheckState='已签退' ,IsCancel='是',CheckOutTime=NOW()
+      WHERE Id=#{id}
+    </update>
+
+    <select id="queryUserChecksColumns" resultType="int">
+        SELECT found_rows();
+    </select>
+
+    <select id="queryUserCheckTthisTime" resultType="int">
+        select count(Id) from userchecks where UserId=#{userId}
+        and date_format(CheckInTime,'%Y-%m-%d')= date_format(now(),'%Y-%m-%d')
+        and CheckState=#{checkState}
+    </select>
+
+    <insert id="addUserCheck" parameterType="userchecks">
+        insert into userchecks (UserId, UserName, CheckInTime, CheckState, IsCancel)
+        values (#{userId},#{userName},now(),'已签到','否');
+    </insert>
+
+    <select id="getUserCheckById" resultType="Userchecks">
+      SELECT * FROM userchecks WHERE UserId=#{userId}
+      and date_format(CheckInTime,'%Y-%m-%d')= date_format(now(),'%Y-%m-%d')
+      and CheckState='已签到'
+    </select>
+
+
+
+
+</mapper>

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="/css/buttons.css">
+    <link rel="stylesheet" href="/js/iview/dist/styles/iview.css">
+    <script src="/js/vue.js"></script>
+    <script src="/js/iview/dist/iview.js"></script>
+    <script src="/js/axios.js"></script>
+    <script src="/js/jquery-3.3.1.js"></script>
+    <script src="/js/permissionShow.js"></script>
+    <style>
+        html body{
+            width: 100%;
+            height: auto;
+            background: rgb(2,0,36);
+            background: linear-gradient(90deg, rgba(2,0,36,1) 0%, rgba(235,170,217,0.9699230033810399) 0%, rgba(0,212,255,1) 100%);
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <row>
+        <i-col :span="3">
+            <span>学生姓名:</span>
+            <i-input v-model="netFollowFrom.studentName" placeholder="请输入查询的学生姓名"></i-input>
+        </i-col>
+        <i-col :span="3">
+            <span>跟踪者:</span>
+            <i-input v-model="netFollowFrom.userName" placeholder="请输入查询的跟踪者"></i-input>
+        </i-col>
+        <i-col :span="4">
+            <span>跟踪时间起止:</span>
+            <date-picker v-model="netFollowFrom.followTimeStartAndEnd" split-panels type="datetimerange" format="yyyy-MM-dd HH:mm"
+                         placeholder="请输入跟踪时间起止"></date-picker>
+        </i-col>
+        <i-col :span="3">
+            <span>回访情况:</span>
+            <i-input v-model="netFollowFrom.content" placeholder="请输入查询的内容"></i-input>
+        </i-col>
+        <i-col :span="3">
+            <span>跟踪方式:</span>
+            <i-input v-model="netFollowFrom.content" placeholder="请输入跟踪方式"></i-input>
+        </i-col>
+        <i-col :span="3">
+            <i-button @click="netFollowDataPagingSearch" type="primary" shape="circle" icon="ios-search">搜索</i-button>
+
+        </i-col>
+        <i-col :span="1">
+            <i-button icon="loop" type="info" @click="reloadHTML">刷新</i-button>
+        </i-col>
+    </row>
+    <div style="margin-top: 10px;display: flex;justify-content: space-between;align-items: center;">
+    <div permissionerequier="netfollow:expertNeyfollows">
+        <button @click="expertData"  class="button button-small  button-3d button-royal button-rounded">
+            <Icon type="android-download"></Icon>
+            导出数据为表格
+        </button>
+    </div>
+    <div>
+    </div>
+    </div>
+    <div style="margin-top: 10px;">
+        <i-table  permissionerequier="netfollow:queryNetFollowsAllByNetfollQuery"   stripe  border  :loading="netFollowLoading" :columns="netFollowColumns" :data="netFollowData"></i-table>
+    </div>
+    <div style="display: flex;justify-content: center;align-items: center;margin-top: 10px;">
+        <page @on-page-size-change="pgeSizeChange" @on-change="pageChanage" :total="netFollowFrom.total"   :current="netFollowFrom.page"
+              :page-size="netFollowFrom.rows" show-elevator show-sizer></page>
+    </div>
+    <div style="display: none;"></div>
+</div>
+</body>
+<script>
+    let maindata={
+        data(){
+            return{
+                netFollowLoading:true,
+                netFollowFrom:{
+                    studentName:'',
+                    userName:'',
+                    followTimeStartAndEnd:[],
+                    content:'',
+                    followType:'',
+                    page:1,
+                    rows:10,
+                    total:0
+                },
+                netFollowColumns:[
+                    {
+                        title:'跟踪学生姓名',
+                        key:'studentName'
+                    },
+                    {
+                        title:'跟踪时间',
+                        key:'followTime',
+                    },
+                    {
+                        title:'下次更新时间',
+                        key:'nextFollowTime'
+                    },
+                    {
+                        title:'内容',
+                        key:'content',
+                        ellipsis:true
+                    },
+                    {
+                        title:'跟踪者',
+                        key:'userName'
+                    },
+                    {
+                        title:"跟踪类型",
+                        key:'followType'
+                    },
+                    {
+                        title:'跟踪状态',
+                        key:'followState'
+                    },
+                    {
+                        title:'创建时间',
+                        key:'createTime'
+                    },
+                    {
+                        title:'操作',
+                        render:(h,params)=>{
+                            return h('i-button',{
+                                props:{
+                                    type:'dashed'
+                                },
+                                on:{
+                                    click:()=>{
+                                        this.$Modal.confirm({
+                                            render: (h) => {
+                                                return h('div',params.row.content)
+                                            }
+                                        })
+                                    }
+                                }
+                            },"查看详细内容")
+                        }
+                    }
+                ],
+                netFollowData:[]
+            }
+        },
+        methods:{
+            importsuc(response, file, fileList){
+                if(response.success){
+                    this.$Message.success("成功");
+                }else{
+                    this.$Message.error(response.message);
+                }
+
+            },
+            importerr(error, file, fileList){
+                this.$Message.error(error.message);
+            },
+            importsuc(response, file, fileList){
+                if(response.success){
+                    this.$Message.success("成功");
+                }else{
+                    this.$Message.error(response.message);
+                }
+
+            },
+            importerr(error, file, fileList){
+                this.$Message.error(error.message);
+            },
+            netFollowDataPagingSearch(){
+                this.netFollowFrom.page=1;
+                this.netFollowDataPaging();
+            },
+            pageChanage(page){
+                this.netFollowFrom.page=page;
+                this.netFollowDataPaging();
+            },
+            pgeSizeChange(size){
+                this.netFollowFrom.rows=size;
+                this.netFollowDataPaging();
+            },
+            expertData(){
+                const form = document.createElement('form')
+                form.action = "/netfollow/expertNeyfollows"
+                form.method = 'GET'
+                form.style.display = 'none'
+                let askerId=""
+                let roleNames=localStorage.getItem("roleNames");
+                if(roleNames.indexOf("咨询师")!=-1)
+                    askerId=localStorage.getItem("userId");
+
+                let studentName=document.createElement('input');
+                studentName.name="studentName";
+                studentName.value=this.netFollowFrom.studentName;
+
+                let userName=document.createElement('input');
+                userName.name="userName";
+                userName.value=this.netFollowFrom.userName;
+
+                let followTimeStart=document.createElement('input');
+                followTimeStart.name="followTimeStart";
+                followTimeStart.value=this.date_string(this.netFollowFrom.followTimeStartAndEnd[0]);
+
+                let followTimeEnd=document.createElement('input');
+                followTimeEnd.name="followTimeEnd";
+                followTimeEnd.value=this.date_string(this.netFollowFrom.followTimeStartAndEnd[1]);
+
+                let content=document.createElement('input');
+                content.name="content";
+                content.value=this.netFollowFrom.content;
+
+                let followType=document.createElement('input');
+                followType.name="followType";
+                followType.value=this.netFollowFrom.followType;
+
+                let askerIdinput=document.createElement('input');
+                askerIdinput.name="askerId";
+                askerIdinput.value=askerId;
+
+                const button = document.createElement('input')
+                button.type = 'submit'
+                form.appendChild(studentName)
+                form.appendChild(userName)
+                form.appendChild(followTimeStart)
+                form.appendChild(followTimeEnd)
+                form.appendChild(content)
+                form.appendChild(followType)
+                form.appendChild(askerIdinput)
+                form.appendChild(button)
+                document.body.appendChild(form)
+                form.submit()
+                document.body.removeChild(form)
+            },
+            netFollowDataPaging(){
+                window.setTimeout(()=>{
+                    permissionshow();
+                },100)
+
+                let askerId=""
+                let roleNames=localStorage.getItem("roleNames");
+                if(roleNames.indexOf("咨询师")!=-1)
+                    askerId=localStorage.getItem("userId");
+                this.netFollowLoading=true;
+                axios.get('/netfollow/queryNetFollowsAllByNetfollQuery',{
+                    params:{
+                        studentName:this.netFollowFrom.studentName,
+                        userName:this.netFollowFrom.userName,
+                        followTimeStart:this.date_string(this.netFollowFrom.followTimeStartAndEnd[0]),
+                        followTimeEnd:this.date_string(this.netFollowFrom.followTimeStartAndEnd[1]),
+                        content:this.netFollowFrom.content,
+                        followType:this.netFollowFrom.followType,
+                        askerId:askerId,
+                        page:this.netFollowFrom.page,
+                        rows:this.netFollowFrom.rows,
+                    }
+                })
+                    .then((response) => {
+                        if(response.data.success){
+                            this.netFollowFrom.total=response.data.message.total;
+                            this.netFollowData=response.data.message.rows;
+                            this.netFollowLoading=false;
+
+                        }else{
+                            this.$Notice.error({
+                                title: '查询失败',
+                                desc:  error.response.data.message
+                            });
+                        }
+
+                    })
+                    .catch((error)=>{
+                        try {
+                            if(error.response.data.message=="请先登录"){
+                                window.top.location.href="/";
+                            }
+                            if(error.response.data.success==false){
+                                this.$Notice.error({
+                                    title: '查询失败',
+                                    desc:  error.response.data.message
+                                });
+                            }else{
+                                this.$Notice.error({
+                                    title: '查询失败',
+                                    desc:  ''
+                                });
+                            }
+                        }
+                        catch(err) {
+                            this.$Notice.error({
+                                title: '查询失败',
+                                desc:  ''
+                            });
+                        }
+                        console.log(error)
+                    })
+            },
+            date_string(date) {
+                if (typeof(date) != "object" || date=="" ||date==null) {
+                    return null;
+                }
+                console.log(date)
+                let year = date.getFullYear();
+                let month = (date.getMonth() + 1).toString();
+                let day = (date.getDate()).toString();
+                let hour = date.getHours();
+                let min = date.getMinutes();
+                let secod = date.getSeconds();
+                if (month.length == 1) {
+                    month = "0" + month;
+                }
+                if (day.length == 1) {
+                    day = "0" + day;
+                }
+                var dateTime = year + "-" + month + "-" + day + " " + hour + ":" + min + ":" + secod
+                return dateTime;
+            },
+            reloadHTML(){
+                this.$Spin.show();
+                this.$Loading.start();
+                setTimeout(() => {
+                    this.$Spin.hide();
+                    this.$Loading.finish();
+                    window.location.reload();
+                }, 1000);
+            }
+        },
+        mounted(){
+            this.netFollowDataPaging();
+        }
+    }
+    var Component = Vue.extend(maindata)
+    new Component().$mount('#app')
+
+</script>
+</html>
